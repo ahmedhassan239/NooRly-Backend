@@ -1,59 +1,74 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# NooRly - Backend API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel](https://img.shields.io/badge/Laravel-12.0-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
+[![Filament](https://img.shields.io/badge/Filament-3.2-FFA500?style=for-the-badge&logo=filament)](https://filamentphp.com)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-## About Laravel
+NooRly is the backend engine powering the **New Muslim Path** platform. It provides a robust API and a comprehensive administration panel for managing educational content, daily tasks, and spiritual guidance for new Muslims.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🚀 Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Multilingual Support**: Built-in support for multiple languages with a focus on English and Arabic.
+- **Educational Modules**: Manage lessons, content, and progress tracking.
+- **Daily Tasks**: Scheduled spiritual and practical tasks for users.
+- **Islamic Resources**: Integrated Duas (supplications) and FAQs.
+- **Secure Authentication**: Social login (Google, Facebook, Apple) and guest access via Laravel Sanctum.
+- **Admin Panel**: Powerful administration dashboard powered by Filament v3.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 🛠 Tech Stack
 
-## Learning Laravel
+- **Framework**: [Laravel 12](https://laravel.com)
+- **Admin Dashboard**: [Filament v3](https://filamentphp.com)
+- **Authentication**: [Sanctum](https://laravel.com/docs/sanctum) & [Socialite](https://laravel.com/docs/socialite)
+- **Database**: MySQL / SQLite
+- **API Documentation**: Postman Collection included
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 📋 Prerequisites
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP ^8.2
+- Composer
+- Node.js & NPM
+- MySQL or SQLite
 
-## Laravel Sponsors
+## ⚙️ Installation & Setup
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd NooRly-Backend
+   ```
 
-### Premium Partners
+2. **Run the setup script**:
+   The project includes a convenient setup script defined in `composer.json`:
+   ```bash
+   composer run setup
+   ```
+   *This will install dependencies, create the `.env` file, generate the app key, and run migrations.*
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+3. **Configure Environment**:
+   Update your `.env` file with your database and social provider credentials.
 
-## Contributing
+4. **Start the development server**:
+   ```bash
+   composer run dev
+   ```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🔐 API Endpoints
 
-## Code of Conduct
+The API is versioned (`v1`) and documented in the provided Postman collection.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- **Auth**: `/api/v1/auth/*` (Login, Register, Social, Guest)
+- **Lessons**: `/api/v1/lessons`
+- **Daily Tasks**: `/api/v1/daily-tasks`
+- **Utility**: `/api/v1/languages`
 
-## Security Vulnerabilities
+## 📂 Documentation
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- [Postman Collection](POSTMAN_README.md)
+- [Database Migration Guide](DATABASE_MIGRATION_GUIDE.md)
+- [I18N Guide](I18N_GUIDE.md)
+- [Filament Tabs Guide](FILAMENT_TABS_GUIDE.md)
 
-## License
+## 📄 License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is open-sourced software licensed under the [MIT license](LICENSE).
