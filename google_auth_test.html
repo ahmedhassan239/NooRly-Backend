@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sign-In Test Helper</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; }
+        code { background: #f4f4f4; padding: 2px 5px; border-radius: 4px; }
+        .token-box { margin-top: 20px; background: #eee; padding: 15px; border-radius: 8px; word-break: break-all; }
+        .alert { color: #856404; background-color: #fff3cd; padding: 10px; border-left: 4px solid #ffeeba; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Google Sign-In Token Helper</h1>
+        <p>Use this page to generate a Google ID Token for testing your API in Postman.</p>
+        
+        <div class="alert">
+            <strong>Action Required:</strong> Open this file in a text editor and replace 
+            <code>YOUR_GOOGLE_CLIENT_ID_HERE</code> with your actual Google Client ID from Firebase/Google Cloud Console.
+        </div>
+
+        <div id="g_id_onload"
+             data-client_id="YOUR_GOOGLE_CLIENT_ID_HERE"
+             data-callback="handleCredentialResponse"
+             data-auto_select="false">
+        </div>
+        <div class="g_id_signin" data-type="standard"></div>
+
+        <div id="token-display" class="token-box" style="display:none;">
+            <h3>Your ID Token:</h3>
+            <p>Copy the token below and paste it into the <code>google_id_token</code> variable in your Postman Environment.</p>
+            <textarea id="id_token_area" style="width:100%; height:150px;"></textarea>
+            <button onclick="copyToken()">Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        function handleCredentialResponse(response) {
+            const tokenDisplay = document.getElementById("token-display");
+            const tokenArea = document.getElementById("id_token_area");
+            
+            tokenDisplay.style.display = "block";
+            tokenArea.value = response.credential;
+            console.log("ID Token:", response.credential);
+        }
+
+        function copyToken() {
+            var copyText = document.getElementById("id_token_area");
+            copyText.select();
+            document.execCommand("copy");
+            alert("Token copied!");
+        }
+    </script>
+</body>
+</html>
