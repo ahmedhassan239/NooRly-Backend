@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Domain\Lessons\Lesson;
+use App\Domain\Datasets\DatasetVersion;
 use App\Filament\Concerns\HasTranslatableTabs;
 use App\Filament\Resources\LessonResource\Pages;
 use Filament\Forms;
@@ -10,6 +11,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Storage;
 use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
 
 class LessonResource extends Resource
@@ -74,17 +77,19 @@ class LessonResource extends Resource
                                 Forms\Components\TextInput::make("{$langCode}_slug")
                                     ->label('Slug')
                                     ->required($isRequired)
-                                    ->unique(ignoreRecord: true, column: 'slug')
-                                    ->disabled(),
+                                    ->unique(
+                                        table: 'lesson_translations',
+                                        column: 'slug',
+                                        modifyRuleUsing: function ($rule, $record) use ($langCode) {
+                                            $rule->where('language_code', $langCode);
+                                            return $record ? $rule->where('lesson_id', '!=', $record->id) : $rule;
+                                        }
+                                    )
+                                    ->disabled(fn ($get) => !$get("{$langCode}_customize_slug")),
                                 Forms\Components\Toggle::make("{$langCode}_customize_slug")
                                     ->label('Customize Slug')
                                     ->default(false)
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, callable $set) use ($langCode) {
-                                        if ($state) {
-                                            $set("{$langCode}_slug_disabled", false);
-                                        }
-                                    }),
+                                    ->live(),
                             ]),
                         
                         Forms\Components\Textarea::make("{$langCode}_short_description")
@@ -147,11 +152,56 @@ class LessonResource extends Resource
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->headerActions([
+                Tables\Actions\Action::make('exportToJson')
+                    ->label('Export to JSON')
+                    ->icon('heroicon-o-cloud-arrow-down')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(function () {
+                        $lessons = Lesson::all();
+                        
+                        $locales = ['en', 'ar'];
+                        
+                        foreach ($locales as $locale) {
+                            $data = $lessons->map(function ($lesson) use ($locale) {
+                                $translation = $lesson->translations()->where('language_code', $locale)->first() 
+                                    ?? $lesson->translations()->where('language_code', 'en')->first();
+                                
+                                return [
+                                    'id' => 'lesson_' . $lesson->id,
+                                    'day_number' => (int)$lesson->day_number,
+                                    'week_number' => (int)(($lesson->day_number - 1) / 7) + 1,
+                                    'title' => $translation?->title ?? 'N/A',
+                                    'summary' => $translation?->short_description ?? '',
+                                    'content' => $translation?->content ?? '',
+                                    'estimated_minutes' => (int)$lesson->duration_minutes,
+                                    'tags' => [], // Placeholder
+                                ];
+                            })->values()->toArray();
+
+                            $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+                            $path = 'content/lessons/' . $locale . '.json';
+                            Storage::put($path, $json);
+                        }
+
+                        // Update DatasetVersion
+                        DatasetVersion::where('dataset_type', 'lessons')->update(['is_current' => false]);
+                        
+                        DatasetVersion::create([
+                            'dataset_type' => 'lessons',
+                            'version' => now()->format('YmdHis'),
+                            'is_current' => true,
+                            'published_at' => now(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Lessons exported successfully')
+                            ->success()
+                            ->send();
+                    })
+            ])
+            ->defaultSort('day_number', 'asc');
     }
 
     public static function getPages(): array

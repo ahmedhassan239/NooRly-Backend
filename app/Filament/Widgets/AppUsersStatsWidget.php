@@ -17,11 +17,11 @@ class AppUsersStatsWidget extends BaseWidget
         $totalUsers = AppUser::count();
         $activeUsers = AppUser::where('status', UserStatus::Active)->count();
 
-        $emailUsers = AppUser::where('registration_method', RegistrationMethod::Email)->count();
-        $googleUsers = AppUser::where('registration_method', RegistrationMethod::Google)->count();
-        $facebookUsers = AppUser::where('registration_method', RegistrationMethod::Facebook)->count();
-        $appleUsers = AppUser::where('registration_method', RegistrationMethod::Apple)->count();
-        $guestUsers = AppUser::where('registration_method', RegistrationMethod::Guest)->count();
+        $emailUsers = AppUser::whereHas('providers', fn ($q) => $q->where('provider', 'email'))->count();
+        $googleUsers = AppUser::whereHas('providers', fn ($q) => $q->where('provider', 'google'))->count();
+        $facebookUsers = AppUser::whereHas('providers', fn ($q) => $q->where('provider', 'facebook'))->count();
+        $appleUsers = AppUser::whereHas('providers', fn ($q) => $q->where('provider', 'apple'))->count();
+        $guestUsers = AppUser::whereHas('providers', fn ($q) => $q->where('provider', 'guest'))->count();
 
         return [
             Stat::make('Total App Users', $totalUsers)

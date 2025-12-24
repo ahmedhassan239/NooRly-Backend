@@ -10,6 +10,7 @@ class LessonTranslation extends Model
         'lesson_id',
         'language_code',
         'title',
+        'slug',
         'short_description',
         'content',
     ];

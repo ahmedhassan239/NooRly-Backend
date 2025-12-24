@@ -2,122 +2,151 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Application\Auth\CreateGuestUserAction;
-use App\Application\Auth\LoginWithEmailAction;
-use App\Application\Auth\RegisterDeviceTokenAction;
-use App\Application\Auth\RegisterWithEmailAction;
-use App\Application\Auth\SocialLoginAction;
-use App\Domain\Auth\Enums\Platform;
-use App\Domain\Auth\Enums\Provider;
-use App\Domain\Auth\Services\SocialAuthProviderFactory;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\DeviceTokenRequest;
-use App\Http\Requests\Auth\GuestRequest;
-use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\RegisterRequest;
-use App\Http\Requests\Auth\SocialLoginRequest;
-use App\Http\Resources\Auth\AppUserResource;
-use Illuminate\Http\JsonResponse;
+use App\Application\Auth\GuestAuthAction;
+use App\Application\Auth\RegisterAction;
+use App\Application\Auth\LoginAction;
+use App\Application\Auth\SocialAuthAction;
+use App\Http\Resources\Api\V1\AppUserResource;
+use App\Support\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Exception;
 
 class AuthController extends Controller
 {
-    public function __construct(
-        private readonly SocialAuthProviderFactory $providerFactory
-    ) {}
+    use ApiResponseTrait;
 
-    public function guest(GuestRequest $request, CreateGuestUserAction $action): JsonResponse
+    /**
+     * Authenticate or create a guest user.
+     */
+    public function guest(Request $request, GuestAuthAction $action)
     {
-        $appUser = $action->execute($request->validated());
-        $token = $appUser->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'token' => $token,
-            'user' => new AppUserResource($appUser),
-        ], 201);
-    }
-
-    public function register(RegisterRequest $request, RegisterWithEmailAction $action): JsonResponse
-    {
-        $currentUser = $request->user();
-        $appUser = $action->execute($currentUser, $request->validated());
-        $token = $appUser->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'token' => $token,
-            'user' => new AppUserResource($appUser),
-        ], 201);
-    }
-
-    public function login(LoginRequest $request, LoginWithEmailAction $action): JsonResponse
-    {
-        $appUser = $action->execute(
-            $request->validated()['email'],
-            $request->validated()['password']
-        );
-        $token = $appUser->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'token' => $token,
-            'user' => new AppUserResource($appUser),
+        $validator = Validator::make($request->all(), [
+            'device_id' => 'required|string|max:255',
+            'locale' => 'nullable|string|in:en,ar',
         ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+        }
+
+        $user = $action->execute($request->device_id, $request->get('locale', 'en'));
+        $token = $user->createToken('guest_token')->plainTextToken;
+
+        return $this->authResponse($user, $token);
     }
 
-    public function google(SocialLoginRequest $request, SocialAuthProviderFactory $factory): JsonResponse
+    /**
+     * Register a new user.
+     */
+    public function register(Request $request, RegisterAction $action)
     {
-        $currentUser = $request->user('sanctum');
-        $provider = $factory->make(Provider::Google);
-        $action = new SocialLoginAction($provider);
-        $appUser = $action->execute($currentUser, $request->validated()['id_token'], Provider::Google);
-        $token = $appUser->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'token' => $token,
-            'user' => new AppUserResource($appUser),
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:8',
+            'name' => 'required|string|max:255',
+            'gender' => 'nullable|string|in:male,female,other,unknown',
+            'birth_date' => 'nullable|date',
+            'locale' => 'nullable|string|in:en,ar',
         ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $user = $action->execute($request->all());
+            $token = $user->createToken('auth_token')->plainTextToken;
+            return $this->authResponse($user, $token);
+        } catch (Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
     }
 
-    public function facebook(SocialLoginRequest $request, SocialAuthProviderFactory $factory): JsonResponse
+    /**
+     * Login with email and password.
+     */
+    public function login(Request $request, LoginAction $action)
     {
-        $currentUser = $request->user();
-        $provider = $factory->make(Provider::Facebook);
-        $action = new SocialLoginAction($provider);
-        $appUser = $action->execute($currentUser, $request->validated()['id_token'], Provider::Facebook);
-        $token = $appUser->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'token' => $token,
-            'user' => new AppUserResource($appUser),
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required|string',
         ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $user = $action->execute($request->email, $request->password);
+            $token = $user->createToken('auth_token')->plainTextToken;
+            return $this->authResponse($user, $token);
+        } catch (Exception $e) {
+            return $this->errorResponse($e->getMessage(), 401);
+        }
     }
 
-    public function apple(SocialLoginRequest $request, SocialAuthProviderFactory $factory): JsonResponse
+    /**
+     * Authenticate via social provider.
+     */
+    public function social(Request $request, string $provider, SocialAuthAction $action)
     {
-        $currentUser = $request->user();
-        $provider = $factory->make(Provider::Apple);
-        $action = new SocialLoginAction($provider);
-        $appUser = $action->execute($currentUser, $request->validated()['id_token'], Provider::Apple);
-        $token = $appUser->createToken('mobile-app')->plainTextToken;
+        $rules = [];
+        $token = null;
 
-        return response()->json([
-            'token' => $token,
-            'user' => new AppUserResource($appUser),
-        ]);
+        if ($provider === 'google') {
+            $rules['id_token'] = 'required|string';
+            $token = $request->id_token;
+        } elseif ($provider === 'facebook') {
+            $rules['access_token'] = 'required|string';
+            $token = $request->access_token;
+        } elseif ($provider === 'apple') {
+            $rules['identity_token'] = 'required|string';
+            $token = $request->identity_token;
+        } else {
+            return $this->errorResponse("Invalid provider", 400);
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+        if ($validator->fails()) {
+            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $user = $action->execute($provider, $token, $request->all());
+            $tokenResult = $user->createToken('social_token')->plainTextToken;
+            return $this->authResponse($user, $tokenResult);
+        } catch (Exception $e) {
+            return $this->errorResponse($e->getMessage(), 401);
+        }
     }
 
-    public function logout(Request $request): JsonResponse
+    /**
+     * Logout and revoke current token.
+     */
+    public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-
-        return response()->json(['message' => 'Logged out successfully']);
+        return $this->successResponse(null, "Logged out successfully");
     }
 
-    public function deviceToken(DeviceTokenRequest $request, RegisterDeviceTokenAction $action): JsonResponse
+    /**
+     * Generate a consistent auth response.
+     */
+    protected function authResponse($user, $token)
     {
-        $appUser = $request->user();
-        $platform = Platform::from($request->validated()['platform']);
-        $action->execute($appUser, $request->validated()['fcm_token'], $platform);
-
-        return response()->json(['message' => 'Device token registered successfully']);
+        $user->load(['profile', 'providers']);
+        
+        return response()->json([
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'user' => new AppUserResource($user),
+            'meta' => [
+                'lang' => app()->getLocale(),
+                'timestamp' => now()->toIso8601String(),
+            ],
+            'message' => 'Authenticated successfully',
+        ]);
     }
 }

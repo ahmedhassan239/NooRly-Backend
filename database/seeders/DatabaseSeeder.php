@@ -10,30 +10,20 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Admin User
-        User::firstOrCreate([
-            'email' => 'admin@noorly.com',
+        // Admin user for Filament
+        User::updateOrCreate([
+            'email' => 'admin@admin.com',
         ], [
             'name' => 'Admin User',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
-            'current_day' => 1,
-            'goal' => 'Manage System',
-            'timezone' => 'UTC',
         ]);
 
-        // Demo User for Mobile App
-        User::firstOrCreate([
-            'email' => 'user@noorly.com',
-        ], [
-            'name' => 'New Muslim',
-            'password' => Hash::make('password'),
-            'current_day' => 1,
-            'goal' => 'Learn Prayer',
-            'timezone' => 'UTC',
+        $this->call([
+            LanguageSeeder::class,
+            IslamicContentSeeder::class,
+            AppUserSeeder::class,
+            UserProgressSeeder::class,
         ]);
-
-        $this->call(IslamicContentSeeder::class);
-        $this->call(AppUserSeeder::class);
     }
 }

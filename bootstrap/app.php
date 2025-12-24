@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             \App\Http\Middleware\SetRequestLanguage::class,
+            \App\Http\Middleware\UpdateLastActiveMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

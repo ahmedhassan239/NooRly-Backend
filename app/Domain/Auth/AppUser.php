@@ -2,82 +2,77 @@
 
 namespace App\Domain\Auth;
 
-use App\Domain\Lessons\Lesson;
-use App\Domain\Progress\DailyStreak;
-use App\Domain\Tasks\DailyTask;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Str;
 
 class AppUser extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
-
-    protected static function newFactory()
-    {
-        return \Database\Factories\AppUserFactory::new();
-    }
-
-    protected $table = 'app_users';
+    use HasApiTokens, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'gender',
-        'date_of_birth',
-        'shahada_date',
-        'main_goal',
-        'timezone',
-        'country',
-        'current_day',
-        'is_guest',
-        'registration_method',
+        'uuid',
         'status',
-        'onboarding_completed_at',
+        'last_active_at',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
+    protected $casts = [
+        'last_active_at' => 'datetime',
     ];
 
-    protected function casts(): array
+    protected static function boot()
     {
-        return [
-            'date_of_birth' => 'date',
-            'shahada_date' => 'date',
-            'is_guest' => 'boolean',
-            'registration_method' => \App\Domain\Auth\Enums\RegistrationMethod::class,
-            'status' => \App\Domain\Auth\Enums\UserStatus::class,
-            'onboarding_completed_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        parent::boot();
+        static::creating(function ($model) {
+            $model->uuid = (string) Str::uuid();
+        });
     }
 
-    public function socialAccounts()
+    public function providers()
     {
-        return $this->hasMany(SocialAccount::class);
+        return $this->hasMany(AppUserProvider::class, 'app_user_id');
     }
 
-    public function deviceTokens()
+    public function profile()
     {
-        return $this->hasMany(AppUserDeviceToken::class);
+        return $this->hasOne(AppUserProfile::class, 'app_user_id');
     }
 
-    public function streak()
+    public function onboarding()
     {
-        return $this->hasOne(DailyStreak::class, 'user_id');
+        return $this->hasOne(\App\Domain\Users\AppUserOnboarding::class, 'app_user_id');
     }
 
-    public function completedLessons()
+    public function settings()
     {
-        return $this->belongsToMany(Lesson::class, 'user_lessons', 'user_id', 'lesson_id')->withTimestamps();
+        return $this->hasOne(\App\Domain\Users\AppUserSettings::class, 'app_user_id');
     }
 
-    public function completedTasks()
+    public function lessonCompletions()
     {
-        return $this->belongsToMany(DailyTask::class, 'user_daily_tasks', 'user_id', 'daily_task_id')->withTimestamps();
+        return $this->hasMany(\App\Domain\Lessons\LessonCompletion::class, 'app_user_id');
+    }
+
+    public function lessonReflections()
+    {
+        return $this->hasMany(\App\Domain\Lessons\LessonReflection::class, 'app_user_id');
+    }
+
+    public function savedItems()
+    {
+        return $this->hasMany(\App\Domain\Users\SavedItem::class, 'app_user_id');
+    }
+
+    public function events()
+    {
+        return $this->hasMany(\App\Domain\Users\AppEvent::class, 'app_user_id');
+    }
+
+    public function progress()
+    {
+        return $this->hasMany(\App\Domain\Progress\UserProgress::class, 'app_user_id');
     }
 }

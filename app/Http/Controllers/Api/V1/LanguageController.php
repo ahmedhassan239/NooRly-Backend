@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Domain\Language\Language;
+use App\Domain\Languages\Language;
 use Illuminate\Http\JsonResponse;
 
 class LanguageController extends Controller

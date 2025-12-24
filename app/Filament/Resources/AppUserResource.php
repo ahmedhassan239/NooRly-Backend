@@ -36,60 +36,50 @@ class AppUserResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Basic Information')
                     ->schema([
-                        Forms\Components\TextInput::make('name')
+                        Forms\Components\TextInput::make('profile.name')
+                            ->label('Name')
                             ->maxLength(255),
-                        Forms\Components\TextInput::make('email')
-                            ->email()
-                            ->maxLength(255)
-                            ->unique(ignoreRecord: true),
-                        Forms\Components\Select::make('gender')
+                        Forms\Components\Select::make('profile.gender')
+                            ->label('Gender')
                             ->options([
-                                Gender::Male->value => 'Male',
-                                Gender::Female->value => 'Female',
+                                'male' => 'Male',
+                                'female' => 'Female',
+                                'other' => 'Other',
+                                'unknown' => 'Unknown',
                             ])
                             ->native(false),
-                        Forms\Components\DatePicker::make('date_of_birth'),
-                        Forms\Components\DatePicker::make('shahada_date'),
-                        Forms\Components\Select::make('main_goal')
+                        Forms\Components\DatePicker::make('profile.birth_date')
+                            ->label('Birth Date'),
+                        Forms\Components\Select::make('profile.locale')
+                            ->label('Locale')
                             ->options([
-                                MainGoal::Salah->value => 'Salah',
-                                MainGoal::QuranBasics->value => 'Quran Basics',
-                                MainGoal::FaithEssentials->value => 'Faith Essentials',
-                                MainGoal::Exploring->value => 'Exploring',
+                                'en' => 'English',
+                                'ar' => 'Arabic',
                             ])
                             ->native(false),
                     ])
                     ->columns(2),
-                Forms\Components\Section::make('Location & Settings')
+                Forms\Components\Section::make('Account Settings')
                     ->schema([
-                        Forms\Components\TextInput::make('timezone')
-                            ->required()
-                            ->maxLength(255),
-                        Forms\Components\TextInput::make('country')
-                            ->maxLength(255),
+                        Forms\Components\TextInput::make('uuid')
+                            ->disabled()
+                            ->label('UUID'),
                         Forms\Components\Select::make('status')
                             ->options([
-                                UserStatus::Active->value => 'Active',
-                                UserStatus::Inactive->value => 'Inactive',
-                                UserStatus::Banned->value => 'Banned',
+                                'active' => 'Active',
+                                'disabled' => 'Disabled',
+                                'banned' => 'Banned',
                             ])
                             ->required()
                             ->native(false),
                     ])
-                    ->columns(3),
-                Forms\Components\Section::make('Read-Only Information')
+                    ->columns(2),
+                Forms\Components\Section::make('Metadata')
                     ->schema([
-                        Forms\Components\TextInput::make('registration_method')
+                        Forms\Components\DateTimePicker::make('last_active_at')
                             ->disabled()
-                            ->dehydrated(false)
-                            ->formatStateUsing(fn ($state) => $state ? ucfirst($state?->value ?? $state) : 'N/A'),
-                        Forms\Components\Toggle::make('is_guest')
-                            ->disabled()
-                            ->dehydrated(false),
+                            ->label('Last Active At'),
                         Forms\Components\DateTimePicker::make('created_at')
-                            ->disabled()
-                            ->dehydrated(false),
-                        Forms\Components\DateTimePicker::make('updated_at')
                             ->disabled()
                             ->dehydrated(false),
                     ])
@@ -102,87 +92,83 @@ class AppUserResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('id')
-                    ->label('ID')
-                    ->sortable()
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('uuid')
+                    ->label('UUID')
                     ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('email')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('profile.name')
+                    ->label('Name')
                     ->searchable()
                     ->sortable()
-                    ->copyable(),
-                Tables\Columns\TextColumn::make('registration_method')
+                    ->default('N/A'),
+                Tables\Columns\TextColumn::make('providers.email')
+                    ->label('Emails')
+                    ->searchable()
+                    ->sortable()
+                    ->wrap()
+                    ->default('N/A'),
+                Tables\Columns\TextColumn::make('providers.provider')
+                    ->label('Providers')
                     ->badge()
-                    ->color(fn ($state): string => match ($state?->value ?? $state) {
-                        RegistrationMethod::Guest->value => 'secondary',
-                        RegistrationMethod::Email->value => 'primary',
-                        RegistrationMethod::Google->value => 'success',
-                        RegistrationMethod::Facebook->value => 'info',
-                        RegistrationMethod::Apple->value => 'warning',
+                    ->color(fn ($state): string => match ($state) {
+                        'guest' => 'secondary',
+                        'email' => 'primary',
+                        'google' => 'success',
+                        'facebook' => 'info',
+                        'apple' => 'warning',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn ($state): string => ucfirst($state?->value ?? $state ?? 'N/A'))
-                    ->sortable(),
-                Tables\Columns\IconColumn::make('is_guest')
-                    ->boolean()
-                    ->sortable(),
+                    ->formatStateUsing(fn ($state): string => ucfirst($state))
+                    ->separator(', '),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->color(fn ($state): string => match ($state?->value ?? $state) {
-                        UserStatus::Active->value => 'success',
-                        UserStatus::Inactive->value => 'gray',
-                        UserStatus::Banned->value => 'danger',
+                    ->color(fn ($state): string => match ($state) {
+                        'active' => 'success',
+                        'disabled' => 'gray',
+                        'banned' => 'danger',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn ($state): string => ucfirst($state?->value ?? $state ?? 'N/A'))
+                    ->formatStateUsing(fn ($state): string => ucfirst($state))
                     ->sortable(),
-                Tables\Columns\TextColumn::make('country')
+                Tables\Columns\TextColumn::make('last_active_at')
+                    ->dateTime()
                     ->sortable()
                     ->toggleable(),
-                Tables\Columns\TextColumn::make('timezone')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('registration_method')
+                Tables\Filters\SelectFilter::make('provider')
+                    ->relationship('providers', 'provider')
                     ->options([
-                        RegistrationMethod::Guest->value => 'Guest',
-                        RegistrationMethod::Email->value => 'Email',
-                        RegistrationMethod::Google->value => 'Google',
-                        RegistrationMethod::Facebook->value => 'Facebook',
-                        RegistrationMethod::Apple->value => 'Apple',
+                        'guest' => 'Guest',
+                        'email' => 'Email',
+                        'google' => 'Google',
+                        'facebook' => 'Facebook',
+                        'apple' => 'Apple',
                     ])
                     ->native(false),
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
-                        UserStatus::Active->value => 'Active',
-                        UserStatus::Inactive->value => 'Inactive',
-                        UserStatus::Banned->value => 'Banned',
+                        'active' => 'Active',
+                        'disabled' => 'Disabled',
+                        'banned' => 'Banned',
                     ])
                     ->native(false),
-                Tables\Filters\TernaryFilter::make('is_guest')
-                    ->label('Guest User')
-                    ->placeholder('All users')
-                    ->trueLabel('Guest users only')
-                    ->falseLabel('Registered users only'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('toggleStatus')
-                    ->label(fn (AppUser $record): string => $record->status === UserStatus::Active ? 'Deactivate' : 'Activate')
+                    ->label(fn (AppUser $record): string => $record->status === UserStatus::Active ? 'Disable' : 'Activate')
                     ->icon(fn (AppUser $record): string => $record->status === UserStatus::Active ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (AppUser $record): string => $record->status === UserStatus::Active ? 'warning' : 'success')
                     ->requiresConfirmation()
                     ->action(function (AppUser $record): void {
                         $record->update([
-                            'status' => $record->status === UserStatus::Active ? UserStatus::Inactive : UserStatus::Active,
+                            'status' => $record->status === UserStatus::Active ? UserStatus::Disabled : UserStatus::Active,
                         ]);
                     })
                     ->disabled(fn (AppUser $record): bool => $record->status === UserStatus::Banned),
@@ -205,14 +191,14 @@ class AppUserResource extends Resource
                         })
                         ->deselectRecordsAfterCompletion(),
                     Tables\Actions\BulkAction::make('deactivate')
-                        ->label('Deactivate')
+                        ->label('Disable')
                         ->icon('heroicon-o-x-circle')
                         ->color('warning')
                         ->requiresConfirmation()
                         ->action(function ($records): void {
                             $records->each(function (AppUser $record): void {
                                 if ($record->status !== UserStatus::Banned) {
-                                    $record->update(['status' => UserStatus::Inactive]);
+                                    $record->update(['status' => UserStatus::Disabled]);
                                 }
                             });
                         })
@@ -229,58 +215,95 @@ class AppUserResource extends Resource
             ->schema([
                 Infolists\Components\Section::make('Basic Information')
                     ->schema([
-                        Infolists\Components\TextEntry::make('id')
-                            ->label('ID'),
-                        Infolists\Components\TextEntry::make('name'),
-                        Infolists\Components\TextEntry::make('email'),
-                        Infolists\Components\TextEntry::make('gender')
+                        Infolists\Components\TextEntry::make('uuid')
+                            ->label('UUID'),
+                        Infolists\Components\TextEntry::make('profile.name')
+                            ->label('Name'),
+                        Infolists\Components\TextEntry::make('profile.gender')
+                            ->label('Gender')
                             ->formatStateUsing(fn (?string $state): string => $state ? ucfirst($state) : 'N/A'),
-                        Infolists\Components\TextEntry::make('date_of_birth')
+                        Infolists\Components\TextEntry::make('profile.birth_date')
+                            ->label('Birth Date')
                             ->date(),
-                        Infolists\Components\TextEntry::make('shahada_date')
-                            ->date(),
-                        Infolists\Components\TextEntry::make('main_goal')
-                            ->formatStateUsing(fn (?string $state): string => $state ? ucfirst(str_replace('_', ' ', $state)) : 'N/A'),
+                        Infolists\Components\TextEntry::make('profile.locale')
+                            ->label('Locale')
+                            ->formatStateUsing(fn (?string $state): string => strtoupper($state ?? 'EN')),
                     ])
                     ->columns(2),
-                Infolists\Components\Section::make('Location & Settings')
+                Infolists\Components\Section::make('Account & Providers')
                     ->schema([
-                        Infolists\Components\TextEntry::make('timezone'),
-                        Infolists\Components\TextEntry::make('country')
-                            ->default('N/A'),
-                        Infolists\Components\IconEntry::make('is_guest')
-                            ->boolean()
-                            ->label('Guest User'),
-                        Infolists\Components\TextEntry::make('registration_method')
-                            ->badge()
-                            ->color(fn ($state): string => match ($state?->value ?? $state) {
-                                RegistrationMethod::Guest->value => 'secondary',
-                                RegistrationMethod::Email->value => 'primary',
-                                RegistrationMethod::Google->value => 'success',
-                                RegistrationMethod::Facebook->value => 'info',
-                                RegistrationMethod::Apple->value => 'warning',
-                                default => 'gray',
-                            })
-                            ->formatStateUsing(fn ($state): string => ucfirst($state?->value ?? $state ?? 'N/A')),
                         Infolists\Components\TextEntry::make('status')
                             ->badge()
-                            ->color(fn ($state): string => match ($state?->value ?? $state) {
-                                UserStatus::Active->value => 'success',
-                                UserStatus::Inactive->value => 'gray',
-                                UserStatus::Banned->value => 'danger',
+                            ->color(fn ($state): string => match ($state) {
+                                'active' => 'success',
+                                'disabled' => 'gray',
+                                'banned' => 'danger',
                                 default => 'gray',
                             })
-                            ->formatStateUsing(fn ($state): string => ucfirst($state?->value ?? $state ?? 'N/A')),
+                            ->formatStateUsing(fn ($state): string => ucfirst($state)),
+                        Infolists\Components\TextEntry::make('providers.provider')
+                            ->label('Auth Providers')
+                            ->badge()
+                            ->color(fn ($state): string => match ($state) {
+                                'guest' => 'secondary',
+                                'email' => 'primary',
+                                'google' => 'success',
+                                'facebook' => 'info',
+                                'apple' => 'warning',
+                                default => 'gray',
+                            })
+                            ->formatStateUsing(fn ($state): string => ucfirst($state))
+                            ->separator(', '),
+                        Infolists\Components\TextEntry::make('providers.email')
+                            ->label('Registered Emails')
+                            ->listWithLineBreaks()
+                            ->bulleted(),
                     ])
                     ->columns(3),
+                Infolists\Components\Section::make('App Usage')
+                    ->schema([
+                        Infolists\Components\Group::make([
+                            Infolists\Components\TextEntry::make('onboarding.start_date')
+                                ->label('Journey Start')
+                                ->date(),
+                            Infolists\Components\TextEntry::make('onboarding.shahada_date')
+                                ->label('Shahada Date')
+                                ->date()
+                                ->placeholder('Not set'),
+                            Infolists\Components\TextEntry::make('onboarding.learning_goal')
+                                ->label('Goal')
+                                ->placeholder('None'),
+                            Infolists\Components\TextEntry::make('onboarding.timezone')
+                                ->label('Timezone'),
+                        ])->columns(2)->label('Onboarding Status'),
+
+                        Infolists\Components\Group::make([
+                            Infolists\Components\TextEntry::make('settings.language')
+                                ->label('Language')
+                                ->formatStateUsing(fn (?string $state): string => strtoupper($state ?? 'EN')),
+                            Infolists\Components\IconEntry::make('settings.dark_mode')
+                                ->label('Dark Mode')
+                                ->boolean(),
+                            Infolists\Components\IconEntry::make('settings.notifications_enabled')
+                                ->label('Notifications')
+                                ->boolean(),
+                            Infolists\Components\TextEntry::make('settings.location_mode')
+                                ->label('Location')
+                                ->formatStateUsing(fn (?string $state): string => ucfirst($state ?? 'GPS')),
+                        ])->columns(2)->label('Preferences'),
+                    ])
+                    ->columns(2),
+
                 Infolists\Components\Section::make('Timestamps')
                     ->schema([
+                        Infolists\Components\TextEntry::make('last_active_at')
+                            ->dateTime(),
                         Infolists\Components\TextEntry::make('created_at')
                             ->dateTime(),
                         Infolists\Components\TextEntry::make('updated_at')
                             ->dateTime(),
                     ])
-                    ->columns(2)
+                    ->columns(3)
                     ->collapsible(),
             ]);
     }

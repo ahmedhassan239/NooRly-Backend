@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Domain\Language\Language;
+use App\Domain\Languages\Language;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

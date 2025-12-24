@@ -2,7 +2,7 @@
 
 namespace App\Filament\Concerns;
 
-use App\Models\Domain\Language\Language;
+use App\Domain\Languages\Language;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\Tabs\Tab;
 

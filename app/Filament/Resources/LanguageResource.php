@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\LanguageResource\Pages;
-use App\Models\Domain\Language\Language;
+use App\Domain\Languages\Language;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
