@@ -93,30 +93,30 @@ class IslamicContentSeeder extends Seeder
     {
         $duas = [
             [
-                'title' => 'Before Sleeping',
-                'arabic' => 'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا',
-                'translation' => 'In Your Name, O Allah, I die and I live.',
+                'dua_key' => 'before-sleeping',
+                'category_key' => 'daily',
+                'text_ar' => 'بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا',
+                'text_en' => 'In Your Name, O Allah, I die and I live.',
                 'transliteration' => 'Bismika Allahumma amootu wa ahya.',
-                'category' => 'Daily',
             ],
             [
-                'title' => 'Before Eating',
-                'arabic' => 'بِسْمِ اللَّهِ',
-                'translation' => 'In the name of Allah.',
+                'dua_key' => 'before-eating',
+                'category_key' => 'daily',
+                'text_ar' => 'بِسْمِ اللَّهِ',
+                'text_en' => 'In the name of Allah.',
                 'transliteration' => 'Bismillah.',
-                'category' => 'Daily',
             ],
             [
-                'title' => 'For Forgiveness',
-                'arabic' => 'أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ',
-                'translation' => 'I seek forgiveness from Allah and repent to Him.',
+                'dua_key' => 'for-forgiveness',
+                'category_key' => 'spiritual',
+                'text_ar' => 'أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ',
+                'text_en' => 'I seek forgiveness from Allah and repent to Him.',
                 'transliteration' => 'Astaghfirullah wa atoobu ilayh.',
-                'category' => 'Spiritual',
             ],
         ];
 
         foreach ($duas as $dua) {
-            Dua::firstOrCreate(['title' => $dua['title']], $dua);
+            Dua::firstOrCreate(['dua_key' => $dua['dua_key']], $dua);
         }
     }
 

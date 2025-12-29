@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
             IslamicContentSeeder::class,
             AppUserSeeder::class,
             UserProgressSeeder::class,
+            QuranSeeder::class,
+            HadithSeeder::class,
         ]);
     }
 }
