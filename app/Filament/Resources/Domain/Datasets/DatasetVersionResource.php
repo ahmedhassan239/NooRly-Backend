@@ -18,6 +18,31 @@ class DatasetVersionResource extends Resource
     
     protected static ?string $navigationGroup = 'Systems';
 
+    public static function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\TextInput::make('dataset_type')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('version')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('locale')
+                    ->label('Locale')
+                    ->required()
+                    ->maxLength(5),
+                Forms\Components\FileUpload::make('file_path')
+                    ->label('File')
+                    ->required(),
+                Forms\Components\TextInput::make('checksum')
+                    ->maxLength(255),
+                Forms\Components\Toggle::make('is_published')
+                    ->label('Published')
+                    ->default(false),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -27,7 +52,7 @@ class DatasetVersionResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('version')
                     ->sortable(),
-                Tables\Columns\IconEntry::make('is_current')
+                Tables\Columns\IconColumn::make('is_current')
                     ->boolean()
                     ->label('Current'),
                 Tables\Columns\TextColumn::make('checksum')

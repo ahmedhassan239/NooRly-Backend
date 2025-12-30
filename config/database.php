@@ -63,6 +63,46 @@ return [
             ]) : [],
         ],
 
+        'mysql_quran' => [
+            'driver' => 'mysql',
+            'url' => env('DATABASE_URL'),
+            'host' => env('DB_QURAN_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_QURAN_PORT', env('DB_PORT', '3306')),
+            'database' => env('DB_QURAN_DATABASE', 'quran'),
+            'username' => env('DB_QURAN_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('DB_QURAN_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_QURAN_SOCKET', env('DB_SOCKET', '')),
+            'charset' => env('DB_QURAN_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_QURAN_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        'mysql_hadith' => [
+            'driver' => 'mysql',
+            'url' => env('DATABASE_URL'),
+            'host' => env('DB_HADITH_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_HADITH_PORT', env('DB_PORT', '3306')),
+            'database' => env('DB_HADITH_DATABASE', 'all_hadiths_clean'),
+            'username' => env('DB_HADITH_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('DB_HADITH_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_HADITH_SOCKET', env('DB_SOCKET', '')),
+            'charset' => env('DB_HADITH_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_HADITH_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

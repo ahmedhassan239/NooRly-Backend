@@ -19,6 +19,14 @@ Route::prefix('v1')->group(function () {
     Route::get('/prayer-times', [PrayerTimeController::class, 'index']);
     Route::get('/calendar/hijri', [PrayerTimeController::class, 'calendar']);
 
+    // External Content (Quran & Hadith)
+    Route::prefix('quran')->group(function () {
+        Route::get('/search', [\App\Http\Controllers\Api\ExternalContentController::class, 'searchQuran']);
+    });
+    Route::prefix('hadith')->group(function () {
+        Route::get('/search', [\App\Http\Controllers\Api\ExternalContentController::class, 'searchHadith']);
+    });
+
     // Auth
     Route::prefix('auth')->group(function () {
         Route::post('/guest', [AuthController::class, 'guest']);

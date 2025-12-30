@@ -18,6 +18,38 @@ class IntegrationLogResource extends Resource
     
     protected static ?string $navigationGroup = 'Systems';
 
+    public static function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\TextInput::make('provider')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('endpoint')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\Select::make('status')
+                    ->options([
+                        'success' => 'Success',
+                        'error' => 'Error',
+                    ])
+                    ->required(),
+                Forms\Components\TextInput::make('http_code')
+                    ->numeric()
+                    ->minValue(100)
+                    ->maxValue(599)
+                    ->required(),
+                Forms\Components\TextInput::make('duration_ms')
+                    ->label('Duration (ms)')
+                    ->numeric()
+                    ->required(),
+                Forms\Components\Textarea::make('message')
+                    ->columnSpanFull(),
+                Forms\Components\TextInput::make('payload_hash')
+                    ->maxLength(255),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table

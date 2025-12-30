@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        \App\Domain\Quran\Models\QuranAyah::observe(\App\Observers\ExternalContentObserver::class);
+        \App\Domain\Hadith\Models\HadithItem::observe(\App\Observers\ExternalContentObserver::class);
     }
 }
