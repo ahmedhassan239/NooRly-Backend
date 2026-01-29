@@ -1,13 +1,14 @@
 <?php
 
 return [
-    'quran' => [
-        'connection' => 'mysql_quran',
-        'table' => 'quran.ayahs',
-        'columns' => [
-            'surah_number' => 'surah_id',
-            'ayah_number' => 'number',
-            'text_ar' => 'text',
+
+    'quran_all_lang' => [
+        'connection' => 'mysql_quran_all_lang',
+        'tables' => [
+            'languages' => 'languages',
+            'translations' => 'translations',
+            'verses' => 'quran_verses',
+            'verse_texts' => 'verse_texts',
         ],
     ],
     'hadith' => [

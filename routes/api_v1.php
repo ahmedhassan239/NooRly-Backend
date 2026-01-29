@@ -64,4 +64,28 @@ Route::prefix('v1')->group(function () {
         });
     });
 
+    // Admin / Management (Quran All Languages)
+    Route::prefix('admin/quran-all-lang')->middleware('auth:sanctum')->group(function () {
+        // Languages
+        Route::get('/languages', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'indexLanguages']);
+        Route::post('/languages', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'storeLanguage']);
+        Route::get('/languages/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'showLanguage']);
+        Route::put('/languages/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'updateLanguage']);
+        Route::delete('/languages/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'destroyLanguage']);
+
+        // Translations
+        Route::get('/translations', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'indexTranslations']);
+        Route::post('/translations', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'storeTranslation']);
+        Route::get('/translations/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'showTranslation']);
+        Route::put('/translations/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'updateTranslation']);
+        Route::delete('/translations/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'destroyTranslation']);
+
+        // Verses
+        Route::get('/verses', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'indexVerses']);
+        Route::get('/verses/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'showVerse']);
+        
+        // Verse Texts
+        Route::put('/verse-texts/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'updateVerseText']);
+    });
+
 });
