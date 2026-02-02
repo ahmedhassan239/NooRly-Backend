@@ -44,6 +44,25 @@ class QuranVerse extends Model
     }
 
     /**
+     * Get verse texts for active languages only, ordered by priority.
+     * This is the SINGLE SOURCE OF TRUTH for active verse texts.
+     * 
+     * Returns a collection with relationships loaded.
+     */
+    public function activeVerseTexts()
+    {
+        $verseTexts = $this->verseTexts()
+            ->orderByLanguagePriority()
+            ->get();
+        
+        // Load relationships manually (cannot use ->with() after JOINs)
+        $verseTexts->load('translation.language');
+        
+        return $verseTexts;
+    }
+
+
+    /**
      * Get the surah name.
      */
     public function getSurahNameAttribute(): string
@@ -90,7 +109,8 @@ class QuranVerse extends Model
     public function scopeSearchText(Builder $query, string $term): Builder
     {
         return $query->whereHas('verseTexts', function (Builder $q) use ($term) {
-            $q->where('text', 'like', "%{$term}%");
+            $q->where('text', 'like', "%{$term}%")
+              ->forActiveLanguages();
         });
     }
 

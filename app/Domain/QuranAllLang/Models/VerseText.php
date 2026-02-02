@@ -15,10 +15,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * - BelongsTo: QuranVerse (each text belongs to one verse)
  * - BelongsTo: Translation (each text belongs to one translation)
  * 
+ * ARABIC SEARCH:
+ * The text_normalized column stores Arabic text with diacritics removed for search.
+ * This allows searching "بقرة" to match "بَقَرَةً" (with tashkeel).
+ * The column is automatically populated via VerseTextObserver.
+ * 
  * @property int $id
  * @property int $verse_id
  * @property int $translation_id
- * @property string $text The translated verse text
+ * @property string $text The translated verse text (may include diacritics)
+ * @property string|null $text_normalized Normalized text without diacritics for search
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read QuranVerse $verse
@@ -37,7 +43,8 @@ class VerseText extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected $with = ['translation.language']; // Eager load to avoid N+1
+    // Removed protected $with to avoid conflicts with JOIN-based scopes
+    // Use ->with(['translation.language']) explicitly when needed
 
     /**
      * Get the verse this text belongs to.
@@ -82,11 +89,52 @@ class VerseText extends Model
     }
 
     /**
+     * Scope to filter by active languages only.
+     */
+    public function scopeForActiveLanguages(Builder $query): Builder
+    {
+        return $query->whereHas('translation', function (Builder $q) {
+            $q->whereHas('language', function (Builder $subQ) {
+                $subQ->where('is_active', true);
+            });
+        });
+    }
+
+    /**
+     * Scope to order by language priority: English first, then Arabic, then others.
+     * This scope also filters by active languages.
+     * 
+     * IMPORTANT: This scope uses JOINs. When using this scope, load relationships
+     * manually after get() using ->load() to avoid query conflicts.
+     */
+    public function scopeOrderByLanguagePriority(Builder $query): Builder
+    {
+        return $query->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
+            ->join('languages', 'translations.language_id', '=', 'languages.id')
+            ->where('languages.is_active', true)
+            ->select('verse_texts.*', 'languages.code as language_code')
+            ->orderByRaw("CASE WHEN languages.code = 'en' THEN 1 WHEN languages.code = 'ar' THEN 2 ELSE 3 END");
+    }
+
+    /**
      * Scope to search by text content.
+     * Uses the original text column (exact match with diacritics).
      */
     public function scopeSearchText(Builder $query, string $term): Builder
     {
         return $query->where('text', 'like', "%{$term}%");
+    }
+
+    /**
+     * Scope to search by normalized text (diacritic-agnostic).
+     * Normalizes the search term and searches the text_normalized column.
+     * 
+     * This allows searching "بقرة" to match "بَقَرَةً" (with tashkeel).
+     */
+    public function scopeSearchNormalized(Builder $query, string $term): Builder
+    {
+        $normalizedTerm = \App\Support\Arabic\ArabicTextNormalizer::normalize($term);
+        return $query->where('text_normalized', 'like', "%{$normalizedTerm}%");
     }
 
     /**

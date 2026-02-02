@@ -29,6 +29,7 @@ class Language extends Model
 
     protected $casts = [
         'is_rtl' => 'boolean',
+        'is_active' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -63,6 +64,22 @@ class Language extends Model
     public function scopeByCode(Builder $query, string $code): Builder
     {
         return $query->where('code', $code);
+    }
+
+    /**
+     * Scope to filter active languages only.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope to filter inactive languages only.
+     */
+    public function scopeInactive(Builder $query): Builder
+    {
+        return $query->where('is_active', false);
     }
 
     /**

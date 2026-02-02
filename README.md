@@ -4,71 +4,483 @@
 [![Filament](https://img.shields.io/badge/Filament-3.2-FFA500?style=for-the-badge&logo=filament)](https://filamentphp.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-NooRly is the backend engine powering the **New Muslim Path** platform. It provides a robust API and a comprehensive administration panel for managing educational content, daily tasks, and spiritual guidance for new Muslims.
+NooRly is the backend engine powering the **New Muslim Path** platform. It provides a robust REST API and a comprehensive administration panel for managing educational content, daily tasks, progress tracking, and spiritual guidance for new Muslims.
 
 ## 🚀 Features
 
-- **Multilingual Support**: Built-in support for multiple languages with a focus on English and Arabic.
-- **Educational Modules**: Manage lessons, content, and progress tracking.
-- **Daily Tasks**: Scheduled spiritual and practical tasks for users.
-- **Islamic Resources**: Integrated Duas (supplications) and FAQs.
-- **Secure Authentication**: Social login (Google, Facebook, Apple) and guest access via Laravel Sanctum.
-- **Admin Panel**: Powerful administration dashboard powered by Filament v3.
+- **Multilingual Support**: Database-backed translation system supporting multiple languages (English, Arabic, and extensible)
+- **90-Day Journey**: Lessons system with day-based unlock logic and progress tracking
+- **Daily Tasks**: Scheduled spiritual and practical tasks with completion tracking
+- **Islamic Resources**: Integrated Duas (supplications), Hadith, and FAQs with translations
+- **User Management**: App users with onboarding, settings, saved items, and progress tracking
+- **Prayer Times**: Integrated prayer times API with caching and Hijri calendar support
+- **Secure Authentication**: Social login (Google, Facebook, Apple), email/password, and guest access via Laravel Sanctum
+- **Admin Panel**: Powerful administration dashboard powered by Filament v3 for content and user management
+- **Analytics**: Event tracking system for user interactions
 
 ## 🛠 Tech Stack
 
-- **Framework**: [Laravel 12](https://laravel.com)
-- **Admin Dashboard**: [Filament v3](https://filamentphp.com)
-- **Authentication**: [Sanctum](https://laravel.com/docs/sanctum) & [Socialite](https://laravel.com/docs/socialite)
-- **Database**: MySQL / SQLite
+- **Framework**: [Laravel 12.0](https://laravel.com)
+- **Admin Dashboard**: [Filament 3.2](https://filamentphp.com)
+- **Authentication**: [Laravel Sanctum 4.2](https://laravel.com/docs/sanctum) & [Laravel Socialite 5.24](https://laravel.com/docs/socialite)
+- **Database**: MySQL (default) or SQLite
+- **PHP**: ^8.2
+- **Frontend Build**: Vite 7.0 with Tailwind CSS 4.0
 - **API Documentation**: Postman Collection included
 
 ## 📋 Prerequisites
 
-- PHP ^8.2
+- PHP ^8.2 with required extensions (PDO, OpenSSL, JSON, Mbstring, etc.)
 - Composer
-- Node.js & NPM
-- MySQL or SQLite
+- Node.js & NPM (for frontend assets)
+- MySQL 5.7+ or SQLite 3
+- Git
 
 ## ⚙️ Installation & Setup
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd NooRly-Backend
-   ```
+### 1. Clone the Repository
 
-2. **Run the setup script**:
-   The project includes a convenient setup script defined in `composer.json`:
-   ```bash
-   composer run setup
-   ```
-   *This will install dependencies, create the `.env` file, generate the app key, and run migrations.*
+```bash
+git clone <repository-url>
+cd NooRly-Backend
+```
 
-3. **Configure Environment**:
-   Update your `.env` file with your database and social provider credentials.
+### 2. Install Dependencies
 
-4. **Start the development server**:
-   ```bash
-   composer run dev
-   ```
+```bash
+# Install PHP dependencies
+composer install
+
+# Install Node.js dependencies
+npm install
+```
+
+### 3. Environment Configuration
+
+Copy the example environment file and configure it:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set your database credentials and other required variables (see [Environment Variables](#-environment-variables) section below).
+
+### 4. Generate Application Key
+
+```bash
+php artisan key:generate
+```
+
+### 5. Run Migrations and Seeders
+
+```bash
+# Run migrations
+php artisan migrate
+
+# (Optional) Seed sample data
+php artisan db:seed
+```
+
+### 6. Build Frontend Assets
+
+```bash
+npm run build
+```
+
+### 7. Start Development Server
+
+```bash
+# Using the convenience script (runs server, queue, logs, and Vite concurrently)
+composer run dev
+
+# Or manually:
+php artisan serve
+# In another terminal:
+npm run dev
+```
+
+The API will be available at `http://localhost:8000` and the admin panel at `http://localhost:8000/admin`.
+
+### Quick Setup Script
+
+Alternatively, use the automated setup script:
+
+```bash
+composer run setup
+```
+
+This will:
+- Install Composer dependencies
+- Copy `.env.example` to `.env` (if not exists)
+- Generate application key
+- Run migrations
+- Install NPM dependencies
+- Build frontend assets
+
+## 🔧 Environment Variables
+
+### Application
+
+```env
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=                    # Generated by: php artisan key:generate
+APP_DEBUG=true
+APP_URL=http://localhost
+
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+```
+
+### Database
+
+```env
+DB_CONNECTION=mysql          # or 'sqlite'
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=noorly          # Your database name
+DB_USERNAME=YOUR_USER       # Your database username
+DB_PASSWORD=YOUR_PASS      # Your database password
+```
+
+For SQLite, set `DB_CONNECTION=sqlite` and ensure `database/database.sqlite` exists.
+
+### Cache & Queue
+
+```env
+CACHE_STORE=database        # or 'redis', 'file', 'array'
+QUEUE_CONNECTION=database   # or 'redis', 'sync'
+SESSION_DRIVER=database
+```
+
+### Mail (Optional)
+
+```env
+MAIL_MAILER=log            # Use 'log' for development
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+### Redis (Optional, if using Redis cache/queue)
+
+```env
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+
+### AWS S3 (Optional, for file storage)
+
+```env
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+```
 
 ## 🔐 API Endpoints
 
-The API is versioned (`v1`) and documented in the provided Postman collection.
+The API is versioned under `/api/v1/` and uses Laravel Sanctum for authentication.
 
-- **Auth**: `/api/v1/auth/*` (Login, Register, Social, Guest)
-- **Lessons**: `/api/v1/lessons`
-- **Daily Tasks**: `/api/v1/daily-tasks`
-- **Utility**: `/api/v1/languages`
+### Authentication
+
+- `POST /api/v1/auth/guest` - Create/authenticate guest user
+- `POST /api/v1/auth/register` - Register new user with email/password
+- `POST /api/v1/auth/login` - Login with email/password
+- `POST /api/v1/auth/social/{provider}` - Social login (google, facebook, apple)
+- `POST /api/v1/auth/logout` - Logout (requires authentication)
+
+### User Profile
+
+- `GET /api/v1/me` - Get current authenticated user
+- `PUT /api/v1/me/profile` - Update user profile
+
+### Lessons
+
+- `GET /api/v1/lessons` - List lessons (paginated, with translations)
+- `GET /api/v1/lessons/{id}` - Get lesson detail
+- `POST /api/v1/lessons/{id}/complete` - Mark lesson as complete
+
+### Daily Tasks
+
+- `GET /api/v1/daily-tasks/today` - Get today's tasks
+- `POST /api/v1/daily-tasks/{id}/complete` - Mark task as complete
+
+### Home Dashboard
+
+- `GET /api/v1/home` - Get home dashboard data (lessons, tasks, duas, prayer times)
+
+### Languages
+
+- `GET /api/v1/languages` - Get all active languages
+
+### System
+
+- `GET /api/v1/health` - Health check endpoint
+
+### Language Resolution
+
+The API supports language resolution via:
+1. Query parameter: `?lang=en` or `?lang=ar`
+2. `Accept-Language` header
+3. `X-Lang` header
+4. Default: English (`en`)
+
+All responses include language metadata and fallback information.
+
+## 📊 Admin Dashboard
+
+The Filament admin panel is available at `/admin` after authentication.
+
+### Access
+
+1. Create an admin user (if not seeded):
+   ```bash
+   php artisan make:filament-user
+   ```
+2. Navigate to `http://localhost:8000/admin`
+3. Login with your admin credentials
+
+### Managed Resources
+
+- **App Users** (`/admin/app-users`) - Mobile app users management
+  - View user profiles, providers, status
+  - Enable/disable users
+  - View user activity and progress
+
+- **Lessons** (`/admin/lessons`) - Educational lessons CRUD
+  - Create/edit lessons with translations
+  - Manage day numbers and content
+
+- **Daily Tasks** (`/admin/daily-tasks`) - Daily tasks management
+  - Create/edit tasks with translations
+  - Assign to specific days
+
+- **Duas** (`/admin/duas`) - Supplications management
+  - Manage duas with Arabic text and translations
+
+- **Languages** (`/admin/languages`) - Language configuration
+  - Add/edit languages
+  - Set default language
+  - Configure RTL support
+
+- **Quran All Languages** (`/admin/quran-all-lang-verses`) - Multi-language Quran content management
+  - **Languages** - Manage Quran translation languages with Active/Inactive toggle
+    - Only active languages appear in Translations and Verses sections
+    - Default active languages: Arabic (`ar`) and English (`en`)
+    - Deactivating a language immediately hides it from all verse displays
+  - **Translations** - Manage translation editions/translators
+    - Filtered to show only translations for active languages
+    - Create/edit translations linked to active languages only
+  - **Verses** - Browse and manage Quranic verses
+    - Verse list shows translation count for active languages only
+    - Preview column prioritizes: English > Arabic > first available active language
+    - Verse detail page shows all translations for active languages (ordered: English, Arabic, others)
+    - Filters respect active language status
+
+- **Users** (`/admin/users`) - Admin users management
+
+### Features
+
+- **Translation Management**: All content resources support multiple languages via tabs
+- **RTL Support**: Arabic and other RTL languages are properly handled
+- **Widgets**: Dashboard includes statistics widgets for app users
+- **Filters & Search**: Advanced filtering and search capabilities
+- **Active Language Filtering**: Quran All Languages module respects language activation status
+  - Only active languages appear in verse translations and previews
+  - Language activation/deactivation immediately affects all verse displays
+  - Default active languages: Arabic and English
+
+## 🗄️ Database Structure
+
+### Core Tables
+
+- `app_users` - Mobile app users
+- `app_user_providers` - Authentication providers (email, social)
+- `app_user_profiles` - User profile information
+- `languages` - Supported languages configuration
+- `lessons` - Educational lessons
+- `lesson_translations` - Lesson translations
+- `daily_tasks` - Daily spiritual/practical tasks
+- `daily_task_translations` - Task translations
+- `duas` - Supplications
+- `dua_translations` - Dua translations
+- `faqs` - Frequently asked questions
+- `faq_translations` - FAQ translations
+- `user_progress` - User progress tracking
+- `integration_logs` - External API call logs
+- `dataset_versions` - Content dataset versioning
+
+### Quran All Languages Database (`mysql_quran_all_lang` connection)
+
+The Quran All Languages module uses a separate database connection for multi-language Quran content:
+
+- `languages` - Language definitions with `is_active` flag
+  - Default active languages: `ar` (Arabic) and `en` (English)
+  - All other languages are inactive by default
+- `quran_verses` - Verse references (surah number, ayah number, ayah key)
+- `translations` - Translation editions/translators linked to languages
+- `verse_texts` - Actual translated text for each verse in each translation
+  - `text` - Original Arabic text with diacritics (tashkeel)
+  - `text_normalized` - Normalized text for diacritic-agnostic search
+
+**Active Language Filtering:**
+- Only languages with `is_active = 1` appear in:
+  - Translations list and filters
+  - Verses list (translation count, preview text)
+  - Verse detail pages (translation display)
+- Deactivating a language immediately hides it from all verse-related displays
+- Preview text prioritization: English → Arabic → first available active language
+
+### Arabic Text Normalization
+
+The system supports diacritic-agnostic Arabic search for Quran verses. This allows searching for "بقرة" (without diacritics) to match "بَقَرَةً" (with diacritics).
+
+**How it works:**
+
+1. **Normalized Column**: The `verse_texts` table has a `text_normalized` column that stores Arabic text with:
+   - Diacritics (tashkeel/harakat) removed: فتحة، ضمة، كسرة، شدة، سكون, etc.
+   - Tatweel (kashida ـ) removed
+   - Character variants normalized:
+     - أ/إ/آ/ٱ → ا (Alef variants)
+     - ى → ي (Alef Maksura to Yaa)
+     - ة → ه (Taa Marbuta to Haa)
+     - ؤ → و (Waw with Hamza)
+     - ئ → ي (Yaa with Hamza)
+
+2. **Automatic Sync**: When verse texts are created/updated, the `text_normalized` column is automatically populated via `VerseTextObserver`.
+
+3. **Search Implementation**: The `QuranSearchService` normalizes search terms and queries the `text_normalized` column.
+
+**Backfill Command:**
+
+To populate the `text_normalized` column for existing verse texts:
+
+```bash
+# Preview changes (dry run)
+php artisan quran:normalize-verse-texts --dry-run
+
+# Run the backfill
+php artisan quran:normalize-verse-texts
+
+# Force re-normalize all rows (even if already normalized)
+php artisan quran:normalize-verse-texts --force
+```
+
+**Normalizer Utility:**
+
+The `App\Support\Arabic\ArabicTextNormalizer` class provides:
+
+```php
+use App\Support\Arabic\ArabicTextNormalizer;
+
+// Full normalization (diacritics + character variants)
+$normalized = ArabicTextNormalizer::normalize('بَقَرَةً');
+// Result: 'بقره'
+
+// Remove diacritics only (keep character variants)
+$clean = ArabicTextNormalizer::removeDiacritics('بَقَرَةً');
+// Result: 'بقرة'
+
+// Prepare search term
+$searchTerm = ArabicTextNormalizer::prepareSearchTerm('بَقَرَة');
+// Result: 'بقره'
+
+// Check if text contains Arabic
+$hasArabic = ArabicTextNormalizer::containsArabic('Hello مرحبا');
+// Result: true
+```
+
+**Filament Integration:**
+
+The Categories module's Quran verse multi-select field uses this normalized search:
+- Type any Arabic word (with or without diacritics)
+- Results show verses containing that word
+- Preview shows the matched portion of the verse
+
+### Translation System
+
+The application uses a database-backed translation system:
+- Base tables store non-translatable fields (IDs, relationships)
+- Translation tables store language-specific content
+- Automatic fallback to default language if translation missing
+- RTL support for Arabic and other RTL languages
+
+## 🧪 Testing
+
+Run the test suite:
+
+```bash
+composer run test
+# or
+php artisan test
+```
 
 ## 📂 Documentation
 
-- [Postman Collection](POSTMAN_README.md)
-- [Database Migration Guide](DATABASE_MIGRATION_GUIDE.md)
-- [I18N Guide](I18N_GUIDE.md)
-- [Filament Tabs Guide](FILAMENT_TABS_GUIDE.md)
+Additional documentation files:
+
+- [Postman Collection Guide](POSTMAN_README.md) - API testing with Postman
+- [Database Migration Guide](DATABASE_MIGRATION_GUIDE.md) - Migration patterns and best practices
+- [I18N Guide](I18N_GUIDE.md) - Adding new languages and translations
+- [Filament Tabs Guide](FILAMENT_TABS_GUIDE.md) - Using translatable tabs in admin panel
+
+## 🐛 Troubleshooting
+
+### Migration Errors
+
+If migrations fail:
+```bash
+# Clear config cache
+php artisan config:clear
+
+# Reset database (WARNING: deletes all data)
+php artisan migrate:fresh
+
+# Or rollback and re-run
+php artisan migrate:rollback
+php artisan migrate
+```
+
+### Storage Link
+
+If file uploads don't work:
+```bash
+php artisan storage:link
+```
+
+### Permission Issues
+
+Ensure storage and cache directories are writable:
+```bash
+chmod -R 775 storage bootstrap/cache
+```
+
+### CORS Issues
+
+For API requests from different origins, configure CORS in `config/cors.php` or use Laravel Sanctum's stateful domains.
+
+### Admin Panel Not Loading
+
+1. Ensure assets are built: `npm run build`
+2. Clear cache: `php artisan optimize:clear`
+3. Check Filament installation: `php artisan filament:upgrade`
 
 ## 📄 License
 
 This project is open-sourced software licensed under the [MIT license](LICENSE).
+
+## 🤝 Contributing
+
+Contributions are welcome! Please ensure:
+- Code follows PSR-12 coding standards (enforced by Laravel Pint)
+- Tests are written for new features
+- Documentation is updated
+- Translations are added for new content
+
+Run code formatting:
+```bash
+vendor/bin/pint
+```

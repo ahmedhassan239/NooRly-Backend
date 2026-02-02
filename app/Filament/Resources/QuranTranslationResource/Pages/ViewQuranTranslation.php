@@ -46,7 +46,8 @@ class ViewQuranTranslation extends ViewRecord
                                 number_format($record->verseTexts()->count())
                             )
                             ->badge()
-                            ->color('primary'),
+                            ->color('primary')
+                            ->visible(fn (Translation $record): bool => $record->language->is_active),
                         Infolists\Components\TextEntry::make('created_at')
                             ->dateTime(),
                         Infolists\Components\TextEntry::make('updated_at')
@@ -57,6 +58,11 @@ class ViewQuranTranslation extends ViewRecord
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('sampleVerseTexts')
                             ->label('')
+                            ->getStateUsing(fn (Translation $record) => 
+                                $record->language->is_active 
+                                    ? $record->verseTexts()->forActiveLanguages()->limit(5)->get()
+                                    : collect()
+                            )
                             ->schema([
                                 Infolists\Components\TextEntry::make('verse.ayah_key')
                                     ->label('Reference')
@@ -68,7 +74,8 @@ class ViewQuranTranslation extends ViewRecord
                                         'dir' => $record->translation->language->is_rtl ? 'rtl' : 'ltr',
                                     ]),
                             ])
-                            ->columns(2),
+                            ->columns(2)
+                            ->visible(fn (Translation $record): bool => $record->language->is_active),
                     ])
                     ->collapsible()
                     ->collapsed(false),

@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class QuranAllLangVerseResource extends Resource
 {
@@ -77,21 +78,47 @@ class QuranAllLangVerseResource extends Resource
                     ->badge()
                     ->color('warning'),
                 Tables\Columns\TextColumn::make('verse_texts_count')
-                    ->counts('verseTexts')
                     ->label('Translations')
+                    ->getStateUsing(function (QuranVerse $record): string {
+                        $count = $record->verseTexts()->forActiveLanguages()->count();
+                        return number_format($count);
+                    })
                     ->badge()
-                    ->color('info')
-                    ->formatStateUsing(fn (int $state): string => number_format($state)),
+                    ->color('info'),
                 Tables\Columns\TextColumn::make('preview')
                     ->label('Preview')
                     ->getStateUsing(function (QuranVerse $record): ?string {
-                        $firstText = $record->verseTexts()->first();
-                        return $firstText ? \Str::limit($firstText->text, 100) : 'N/A';
+                        // Priority: English > Arabic > first available active language
+                        // orderByLanguagePriority already filters by active languages
+                        $texts = $record->verseTexts()
+                            ->orderByLanguagePriority()
+                            ->get();
+                        
+                        // Load relationships manually (cannot use ->with() after JOINs)
+                        if ($texts->isNotEmpty()) {
+                            $texts->load('translation.language');
+                        }
+                        
+                        $firstText = $texts->first();
+                        return $firstText ? \Illuminate\Support\Str::limit($firstText->text, 100) : 'N/A';
                     })
                     ->wrap()
-                    ->extraAttributes(fn (QuranVerse $record): array => [
-                        'dir' => $record->verseTexts()->first()?->translation?->language?->is_rtl ? 'rtl' : 'ltr',
-                    ]),
+                    ->extraAttributes(function (QuranVerse $record): array {
+                        // orderByLanguagePriority already filters by active languages
+                        $texts = $record->verseTexts()
+                            ->orderByLanguagePriority()
+                            ->get();
+                        
+                        // Load relationships manually
+                        if ($texts->isNotEmpty()) {
+                            $texts->load('translation.language');
+                        }
+                        
+                        $firstText = $texts->first();
+                        return [
+                            'dir' => $firstText?->translation?->language?->is_rtl ? 'rtl' : 'ltr',
+                        ];
+                    }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('surah_number')
@@ -100,11 +127,16 @@ class QuranAllLangVerseResource extends Resource
                     ->searchable(),
                 Tables\Filters\SelectFilter::make('language')
                     ->label('Language')
-                    ->options(Language::orderBy('name')->pluck('name', 'id'))
+                    ->options(Language::active()->orderBy('name')->pluck('name', 'id'))
                     ->query(function (Builder $query, $state) {
                         if ($state['value']) {
-                            $query->whereHas('verseTexts.translation', function (Builder $q) use ($state) {
-                                $q->where('language_id', $state['value']);
+                            $query->whereHas('verseTexts', function (Builder $q) use ($state) {
+                                $q->whereHas('translation', function (Builder $subQ) use ($state) {
+                                    $subQ->where('language_id', $state['value'])
+                                         ->whereHas('language', function (Builder $langQ) {
+                                             $langQ->where('is_active', true);
+                                         });
+                                });
                             });
                         }
                     })
@@ -112,13 +144,15 @@ class QuranAllLangVerseResource extends Resource
                     ->preload(),
                 Tables\Filters\SelectFilter::make('translation')
                     ->label('Translation')
-                    ->options(Translation::with('language')
+                    ->options(Translation::forActiveLanguages()
+                        ->with('language')
                         ->get()
                         ->mapWithKeys(fn ($t) => [$t->id => "{$t->language->name} - {$t->source_name}"]))
                     ->query(function (Builder $query, $state) {
                         if ($state['value']) {
                             $query->whereHas('verseTexts', function (Builder $q) use ($state) {
-                                $q->where('translation_id', $state['value']);
+                                $q->where('translation_id', $state['value'])
+                                  ->forActiveLanguages();
                             });
                         }
                     })
@@ -143,7 +177,14 @@ class QuranAllLangVerseResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([])
-            ->modifyQueryUsing(fn (Builder $query) => $query->orderBy('surah_number')->orderBy('ayah_number'))
+            ->modifyQueryUsing(function (Builder $query) {
+                // Only show verses that have at least one active language translation
+                $query->whereHas('verseTexts', function (Builder $q) {
+                    $q->forActiveLanguages();
+                });
+                
+                return $query->orderBy('surah_number')->orderBy('ayah_number');
+            })
             ->paginated([25, 50, 100]);
     }
 

@@ -82,6 +82,16 @@ class Translation extends Model
     }
 
     /**
+     * Scope to filter by active languages only.
+     */
+    public function scopeForActiveLanguages(Builder $query): Builder
+    {
+        return $query->whereHas('language', function (Builder $q) {
+            $q->where('is_active', true);
+        });
+    }
+
+    /**
      * Scope to search by source name.
      */
     public function scopeSearchBySource(Builder $query, string $term): Builder

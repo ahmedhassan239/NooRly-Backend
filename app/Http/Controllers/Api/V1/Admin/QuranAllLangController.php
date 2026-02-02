@@ -106,6 +106,11 @@ class QuranAllLangController extends Controller
     {
         $query = Translation::with('language');
 
+        // By default, show only active languages (unless explicitly requested)
+        if (!$request->boolean('include_inactive')) {
+            $query->forActiveLanguages();
+        }
+
         // Filter by language
         if ($request->has('language_id')) {
             $query->where('language_id', $request->input('language_id'));
@@ -208,6 +213,13 @@ class QuranAllLangController extends Controller
             $query->where('ayah_number', $request->input('ayah'));
         }
 
+        // By default, show only verses with active language translations (unless explicitly requested)
+        if (!$request->boolean('include_inactive')) {
+            $query->whereHas('verseTexts', function ($q) {
+                $q->forActiveLanguages();
+            });
+        }
+
         // Filter by language (through verse texts)
         if ($request->has('language')) {
             $query->whereHas('verseTexts.translation', function ($q) use ($request) {
@@ -227,8 +239,14 @@ class QuranAllLangController extends Controller
             $query->searchText($request->input('q'));
         }
 
-        // Include verse texts count
-        $query->withCount('verseTexts');
+        // Include verse texts count (for active languages only if not including inactive)
+        if (!$request->boolean('include_inactive')) {
+            $query->withCount(['verseTexts' => function ($q) {
+                $q->forActiveLanguages();
+            }]);
+        } else {
+            $query->withCount('verseTexts');
+        }
 
         // Ordering
         $query->orderBy('surah_number')->orderBy('ayah_number');
@@ -255,6 +273,11 @@ class QuranAllLangController extends Controller
     {
         $verse = QuranVerse::with(['verseTexts' => function ($query) use ($request) {
             $query->with('translation.language');
+            
+            // By default, show only active language translations (unless explicitly requested)
+            if (!$request->boolean('include_inactive')) {
+                $query->forActiveLanguages();
+            }
             
             // Filter by language if specified
             if ($request->has('language')) {

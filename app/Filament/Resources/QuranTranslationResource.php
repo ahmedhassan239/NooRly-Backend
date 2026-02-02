@@ -10,6 +10,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class QuranTranslationResource extends Resource
 {
@@ -33,7 +34,8 @@ class QuranTranslationResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('language_id')
                             ->label('Language')
-                            ->options(Language::orderBy('name')->pluck('name', 'id'))
+                            ->options(Language::active()->orderBy('name')->pluck('name', 'id'))
+                            ->helperText('Note: Only active languages will be shown in Verses and Translations pages')
                             ->required()
                             ->searchable()
                             ->preload()
@@ -104,9 +106,14 @@ class QuranTranslationResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('language_id')
                     ->label('Language')
-                    ->options(Language::orderBy('name')->pluck('name', 'id'))
+                    ->options(Language::active()->orderBy('name')->pluck('name', 'id'))
                     ->searchable()
                     ->preload(),
+                Tables\Filters\TernaryFilter::make('active_language')
+                    ->label('Active Languages Only')
+                    ->placeholder('All translations')
+                    ->trueLabel('Active languages only')
+                    ->query(fn ($query) => $query->forActiveLanguages()),
                 Tables\Filters\Filter::make('rtl_only')
                     ->label('RTL Languages Only')
                     ->query(fn ($query) => $query->whereHas('language', fn ($q) => $q->where('is_rtl', true))),
@@ -124,6 +131,10 @@ class QuranTranslationResource extends Resource
                         ->requiresConfirmation(),
                 ]),
             ])
+            ->modifyQueryUsing(function (Builder $query) {
+                // By default, show only translations for active languages
+                return $query->forActiveLanguages();
+            })
             ->defaultSort('language.name');
     }
 

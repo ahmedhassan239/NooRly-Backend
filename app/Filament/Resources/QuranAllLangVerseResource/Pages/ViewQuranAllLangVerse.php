@@ -41,9 +41,9 @@ class ViewQuranAllLangVerse extends ViewRecord
                             ->label('Full Reference')
                             ->state(fn (QuranVerse $record): string => $record->full_reference),
                         Infolists\Components\TextEntry::make('verse_texts_count')
-                            ->label('Total Translations')
+                            ->label('Total Translations (Active)')
                             ->state(fn (QuranVerse $record): string => 
-                                number_format($record->verseTexts()->count())
+                                number_format($record->verseTexts()->forActiveLanguages()->count())
                             )
                             ->badge()
                             ->color('info'),
@@ -52,9 +52,25 @@ class ViewQuranAllLangVerse extends ViewRecord
                     ])->columns(3),
                     
                 Infolists\Components\Section::make('Translations')
-                    ->description('All translations for this verse grouped by language')
+                    ->description('All translations for this verse (active languages only)')
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('verseTexts')
+                            ->getStateUsing(function (QuranVerse $record) {
+                                // Use the single source of truth method
+                                $verseTexts = $record->verseTexts()
+                                    ->orderByLanguagePriority()
+                                    ->get();
+                                
+                                // Manually load relationships for each verse text
+                                // (Cannot use ->with() after JOINs as it conflicts)
+                                foreach ($verseTexts as $verseText) {
+                                    if (!$verseText->relationLoaded('translation')) {
+                                        $verseText->load('translation.language');
+                                    }
+                                }
+                                
+                                return $verseTexts;
+                            })
                             ->label('')
                             ->schema([
                                 Infolists\Components\Grid::make(3)
