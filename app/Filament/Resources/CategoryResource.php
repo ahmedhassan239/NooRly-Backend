@@ -2,9 +2,8 @@
 
 namespace App\Filament\Resources;
 
-use App\Contracts\HadithSearchServiceInterface;
-use App\Contracts\QuranSearchServiceInterface;
 use App\Domain\Categories\Models\Category;
+use App\Domain\ContentScopes\ContentScope;
 use App\Domain\Languages\Language;
 use App\Filament\Concerns\HasTranslatableTabs;
 use App\Filament\Resources\CategoryResource\Pages;
@@ -14,6 +13,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CategoryResource extends Resource
@@ -38,6 +38,51 @@ class CategoryResource extends Resource
     {
         return $form
             ->schema([
+                // Scope selection
+                Forms\Components\Section::make('Scope')
+                    ->description('Select the content scope for this category')
+                    ->schema([
+                        Forms\Components\Select::make('scope_id')
+                            ->label('Content Scope')
+                            ->options(function () {
+                                return ContentScope::active()
+                                    ->orderBy('label')
+                                    ->pluck('label', 'id');
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->helperText('Categories are organized by scope (e.g., Lessons, Duas, Daily Tasks). Items are assigned to categories from their respective module forms.')
+                            ->disabled(function (?Category $record) {
+                                // Disable if category has attached items to prevent data inconsistency
+                                if (!$record || !$record->id) {
+                                    return false;
+                                }
+                                
+                                $hasAttachedItems = DB::table('categorizables')
+                                    ->where('category_id', $record->id)
+                                    ->exists();
+                                
+                                return $hasAttachedItems;
+                            })
+                            ->helperText(function (?Category $record) {
+                                if (!$record || !$record->id) {
+                                    return 'Categories are organized by scope (e.g., Lessons, Duas, Daily Tasks). Items are assigned to categories from their respective module forms.';
+                                }
+                                
+                                $hasAttachedItems = DB::table('categorizables')
+                                    ->where('category_id', $record->id)
+                                    ->exists();
+                                
+                                if ($hasAttachedItems) {
+                                    return 'Scope cannot be changed because this category has attached items. Detach all items first to change the scope.';
+                                }
+                                
+                                return 'Categories are organized by scope (e.g., Lessons, Duas, Daily Tasks). Items are assigned to categories from their respective module forms.';
+                            }),
+                    ]),
+
                 // Translatable fields in tabs
                 static::getTranslationTabs(function ($langCode, $isRequired) {
                     $isRtl = in_array($langCode, ['ar', 'fa', 'ur', 'he']);
@@ -90,72 +135,6 @@ class CategoryResource extends Resource
                             ->columnSpanFull(),
                     ];
                 }),
-
-                Forms\Components\Section::make('Quran Verses (Ayat)')
-                    ->description('Search and select Quran verses by Arabic text')
-                    ->schema([
-                        Forms\Components\Select::make('verse_ids')
-                            ->label('Quran Verses')
-                            ->multiple()
-                            ->searchable()
-                            ->getSearchResultsUsing(function (string $search): array {
-                                if (strlen($search) < 2) {
-                                    return [];
-                                }
-                                $service = app(QuranSearchServiceInterface::class);
-                                return $service->searchArabicVerses($search, 50);
-                            })
-                            ->getOptionLabelsUsing(function (array $values): array {
-                                if (empty($values)) {
-                                    return [];
-                                }
-                                $service = app(QuranSearchServiceInterface::class);
-                                return $service->getVerseLabels($values);
-                            })
-                            ->afterStateHydrated(function (Forms\Components\Select $component, ?Category $record) {
-                                if ($record) {
-                                    $component->state($record->getVerseIds());
-                                }
-                            })
-                            ->searchPrompt('Type at least 2 characters to search...')
-                            ->searchingMessage('Searching verses...')
-                            ->noSearchResultsMessage('No verses found')
-                            ->helperText('Search by Arabic text. Results show verse reference and text preview.')
-                            ->columnSpanFull(),
-                    ]),
-
-                Forms\Components\Section::make('Hadith')
-                    ->description('Search and select Hadith by Arabic text')
-                    ->schema([
-                        Forms\Components\Select::make('hadith_ids')
-                            ->label('Hadith Items')
-                            ->multiple()
-                            ->searchable()
-                            ->getSearchResultsUsing(function (string $search): array {
-                                if (strlen($search) < 2) {
-                                    return [];
-                                }
-                                $service = app(HadithSearchServiceInterface::class);
-                                return $service->searchArabicHadith($search, 50);
-                            })
-                            ->getOptionLabelsUsing(function (array $values): array {
-                                if (empty($values)) {
-                                    return [];
-                                }
-                                $service = app(HadithSearchServiceInterface::class);
-                                return $service->getHadithLabels($values);
-                            })
-                            ->afterStateHydrated(function (Forms\Components\Select $component, ?Category $record) {
-                                if ($record) {
-                                    $component->state($record->getHadithIds());
-                                }
-                            })
-                            ->searchPrompt('Type at least 2 characters to search...')
-                            ->searchingMessage('Searching hadith...')
-                            ->noSearchResultsMessage('No hadith found')
-                            ->helperText('Search by Arabic text. Results show source, number, and text preview.')
-                            ->columnSpanFull(),
-                    ]),
             ]);
     }
 
@@ -183,6 +162,23 @@ class CategoryResource extends Resource
                 Tables\Columns\TextColumn::make('id')
                     ->label('ID')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('scope.label')
+                    ->label('Scope')
+                    ->getStateUsing(function (Category $record): string {
+                        return $record->scope?->label ?? 'N/A';
+                    })
+                    ->searchable(query: function ($query, string $search) {
+                        return $query->whereHas('scope', function ($q) use ($search) {
+                            $q->where('label', 'like', "%{$search}%");
+                        });
+                    })
+                    ->badge()
+                    ->color('primary')
+                    ->sortable(query: function ($query, string $direction) {
+                        return $query->join('content_scopes', 'categories.scope_id', '=', 'content_scopes.id')
+                            ->orderBy('content_scopes.label', $direction)
+                            ->select('categories.*');
+                    }),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Name')
                     ->getStateUsing(function (Category $record): string {
@@ -206,16 +202,6 @@ class CategoryResource extends Resource
                     ->getStateUsing(fn (Category $record): int => $record->translations()->count())
                     ->badge()
                     ->color('warning'),
-                Tables\Columns\TextColumn::make('verses_count')
-                    ->label('Ayat')
-                    ->getStateUsing(fn (Category $record): int => $record->verses_count)
-                    ->badge()
-                    ->color('success'),
-                Tables\Columns\TextColumn::make('hadiths_count')
-                    ->label('Hadith')
-                    ->getStateUsing(fn (Category $record): int => count($record->getHadithIds()))
-                    ->badge()
-                    ->color('info'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created')
                     ->dateTime('M j, Y')
@@ -228,20 +214,19 @@ class CategoryResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\Filter::make('has_verses')
-                    ->label('Has Verses')
-                    ->query(fn ($query) => $query->whereExists(function ($q) {
-                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
-                          ->from('category_verse')
-                          ->whereColumn('category_verse.category_id', 'categories.id');
-                    })),
-                Tables\Filters\Filter::make('has_hadiths')
-                    ->label('Has Hadith')
-                    ->query(fn ($query) => $query->whereExists(function ($q) {
-                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
-                          ->from('category_hadith')
-                          ->whereColumn('category_hadith.category_id', 'categories.id');
-                    })),
+                Tables\Filters\SelectFilter::make('scope_id')
+                    ->label('Scope')
+                    ->options(function () {
+                        return ContentScope::active()
+                            ->orderBy('label')
+                            ->pluck('label', 'id');
+                    })
+                    ->query(function ($query, array $data) {
+                        if ($data['value']) {
+                            return $query->where('scope_id', $data['value']);
+                        }
+                        return $query;
+                    }),
                 Tables\Filters\SelectFilter::make('language')
                     ->label('Has Translation')
                     ->options(Language::active()->pluck('name', 'code'))

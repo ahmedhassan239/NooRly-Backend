@@ -2,11 +2,13 @@
 
 namespace App\Domain\Categories\Models;
 
+use App\Domain\ContentScopes\ContentScope;
 use App\Domain\Hadith\Models\HadithItem;
 use App\Domain\QuranAllLang\Models\QuranVerse;
 use App\Domain\Traits\HasTranslations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +33,7 @@ class Category extends Model
     protected $table = 'categories';
 
     protected $fillable = [
-        // Base fields only (translations are in separate table)
+        'scope_id',
     ];
 
     protected $casts = [
@@ -70,6 +72,14 @@ class Category extends Model
     // =========================================================================
     // Relationships
     // =========================================================================
+
+    /**
+     * Get the content scope this category belongs to.
+     */
+    public function scope(): BelongsTo
+    {
+        return $this->belongsTo(ContentScope::class, 'scope_id');
+    }
 
     /**
      * Get all translations for this category.

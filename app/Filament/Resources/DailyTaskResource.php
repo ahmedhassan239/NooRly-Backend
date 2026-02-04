@@ -3,6 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Domain\Tasks\DailyTask;
+use App\Filament\Concerns\HasQuranHadithSelects;
+use App\Filament\Concerns\HasScopeFilteredCategories;
 use App\Filament\Concerns\HasTranslatableTabs;
 use App\Filament\Resources\DailyTaskResource\Pages;
 use Filament\Forms;
@@ -14,7 +16,7 @@ use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
 
 class DailyTaskResource extends Resource
 {
-    use HasTranslatableTabs;
+    use HasTranslatableTabs, HasScopeFilteredCategories, HasQuranHadithSelects;
     
     protected static ?string $model = DailyTask::class;
 
@@ -50,6 +52,21 @@ class DailyTaskResource extends Resource
                             ->label('Points'),
                     ])
                     ->columns(3),
+
+                Forms\Components\Section::make('Categories')
+                    ->schema([
+                        static::getCategorySelectField('daily_tasks'),
+                    ]),
+
+                Forms\Components\Section::make('Quran Ayahs (Ayat)')
+                    ->schema([
+                        static::getQuranAyahsSelectField(),
+                    ]),
+
+                Forms\Components\Section::make('Hadith Items')
+                    ->schema([
+                        static::getHadithItemsSelectField(),
+                    ]),
                 
                 // Translatable fields in tabs
                 static::getTranslationTabs(function ($langCode, $isRequired) {

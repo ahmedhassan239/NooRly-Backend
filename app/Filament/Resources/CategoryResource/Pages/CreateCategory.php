@@ -17,16 +17,6 @@ class CreateCategory extends CreateRecord
     private array $translationData = [];
 
     /**
-     * Verse IDs from form.
-     */
-    private array $verseIds = [];
-
-    /**
-     * Hadith IDs from form.
-     */
-    private array $hadithIds = [];
-
-    /**
      * Mutate form data before creating the record.
      */
     protected function mutateFormDataBeforeCreate(array $data): array
@@ -34,12 +24,10 @@ class CreateCategory extends CreateRecord
         // Extract translation data
         $this->translationData = $this->extractTranslationData($data);
         
-        // Extract relationship data
-        $this->verseIds = $data['verse_ids'] ?? [];
-        $this->hadithIds = $data['hadith_ids'] ?? [];
-        
-        // Return only base model data (categories table has no translatable columns now)
-        return [];
+        // Return base model data (scope_id is fillable)
+        return [
+            'scope_id' => $data['scope_id'] ?? null,
+        ];
     }
 
     /**
@@ -89,12 +77,6 @@ class CreateCategory extends CreateRecord
     {
         // Save translations
         $this->saveTranslations();
-        
-        // Sync verse relationships
-        $this->syncVerses();
-        
-        // Sync hadith relationships
-        $this->syncHadiths();
     }
 
     /**
@@ -115,21 +97,5 @@ class CreateCategory extends CreateRecord
                 ...$fields,
             ]);
         }
-    }
-
-    /**
-     * Sync verse relationships (cross-database).
-     */
-    private function syncVerses(): void
-    {
-        $this->record->syncVerses($this->verseIds);
-    }
-
-    /**
-     * Sync hadith relationships (cross-database).
-     */
-    private function syncHadiths(): void
-    {
-        $this->record->syncHadiths($this->hadithIds);
     }
 }

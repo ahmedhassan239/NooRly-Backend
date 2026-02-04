@@ -3,7 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Domain\Duas\Dua;
-
+use App\Filament\Concerns\HasQuranHadithSelects;
+use App\Filament\Concerns\HasScopeFilteredCategories;
 use App\Filament\Resources\DuaResource\Pages;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -11,9 +12,9 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-
 class DuaResource extends Resource
 {
+    use HasScopeFilteredCategories, HasQuranHadithSelects;
 
     
     protected static ?string $model = Dua::class;
@@ -43,6 +44,21 @@ class DuaResource extends Resource
                             ->label('Source')
                             ->nullable(),
                     ])->columns(3),
+
+                Forms\Components\Section::make('Categories')
+                    ->schema([
+                        static::getCategorySelectField('duas'),
+                    ]),
+
+                Forms\Components\Section::make('Quran Ayahs (Ayat)')
+                    ->schema([
+                        static::getQuranAyahsSelectField(),
+                    ]),
+
+                Forms\Components\Section::make('Hadith Items')
+                    ->schema([
+                        static::getHadithItemsSelectField(),
+                    ]),
 
                 Forms\Components\Tabs::make('Translations')
                     ->tabs([

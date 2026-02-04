@@ -17,16 +17,6 @@ class EditCategory extends EditRecord
      */
     private array $translationData = [];
 
-    /**
-     * Verse IDs from form.
-     */
-    private array $verseIds = [];
-
-    /**
-     * Hadith IDs from form.
-     */
-    private array $hadithIds = [];
-
     protected function getHeaderActions(): array
     {
         return [
@@ -41,6 +31,9 @@ class EditCategory extends EditRecord
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
+        // Load scope_id
+        $data['scope_id'] = $this->record->scope_id;
+        
         // Load translations into form fields
         foreach ($this->record->translations as $translation) {
             $prefix = $translation->language_code . '_';
@@ -61,12 +54,10 @@ class EditCategory extends EditRecord
         // Extract translation data
         $this->translationData = $this->extractTranslationData($data);
         
-        // Extract relationship data
-        $this->verseIds = $data['verse_ids'] ?? [];
-        $this->hadithIds = $data['hadith_ids'] ?? [];
-        
-        // Return only base model data (categories table has no translatable columns now)
-        return [];
+        // Return base model data (scope_id is fillable)
+        return [
+            'scope_id' => $data['scope_id'] ?? null,
+        ];
     }
 
     /**
@@ -116,12 +107,6 @@ class EditCategory extends EditRecord
     {
         // Update translations
         $this->saveTranslations();
-        
-        // Sync verse relationships
-        $this->syncVerses();
-        
-        // Sync hadith relationships
-        $this->syncHadiths();
     }
 
     /**
@@ -148,21 +133,5 @@ class EditCategory extends EditRecord
         $this->record->translations()
             ->whereNotIn('language_code', $existingLanguages)
             ->delete();
-    }
-
-    /**
-     * Sync verse relationships (cross-database).
-     */
-    private function syncVerses(): void
-    {
-        $this->record->syncVerses($this->verseIds);
-    }
-
-    /**
-     * Sync hadith relationships (cross-database).
-     */
-    private function syncHadiths(): void
-    {
-        $this->record->syncHadiths($this->hadithIds);
     }
 }

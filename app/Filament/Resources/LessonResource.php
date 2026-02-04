@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Domain\Lessons\Lesson;
 use App\Domain\Datasets\DatasetVersion;
+use App\Filament\Concerns\HasQuranHadithSelects;
+use App\Filament\Concerns\HasScopeFilteredCategories;
 use App\Filament\Concerns\HasTranslatableTabs;
 use App\Filament\Resources\LessonResource\Pages;
 use Filament\Forms;
@@ -17,7 +19,7 @@ use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
 
 class LessonResource extends Resource
 {
-    use HasTranslatableTabs;
+    use HasTranslatableTabs, HasScopeFilteredCategories, HasQuranHadithSelects;
     
     protected static ?string $model = Lesson::class;
 
@@ -56,6 +58,21 @@ class LessonResource extends Resource
                             ->label('Duration (minutes)'),
                     ])
                     ->columns(2),
+
+                Forms\Components\Section::make('Categories')
+                    ->schema([
+                        static::getCategorySelectField('lessons'),
+                    ]),
+
+                Forms\Components\Section::make('Quran Ayahs (Ayat)')
+                    ->schema([
+                        static::getQuranAyahsSelectField(),
+                    ]),
+
+                Forms\Components\Section::make('Hadith Items')
+                    ->schema([
+                        static::getHadithItemsSelectField(),
+                    ]),
                 
                 // Translatable fields in tabs
                 static::getTranslationTabs(function ($langCode, $isRequired) {
