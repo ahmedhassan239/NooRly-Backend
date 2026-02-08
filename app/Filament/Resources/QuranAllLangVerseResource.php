@@ -88,35 +88,74 @@ class QuranAllLangVerseResource extends Resource
                 Tables\Columns\TextColumn::make('preview')
                     ->label('Preview')
                     ->getStateUsing(function (QuranVerse $record): ?string {
-                        // Priority: English > Arabic > first available active language
-                        // orderByLanguagePriority already filters by active languages
-                        $texts = $record->verseTexts()
-                            ->orderByLanguagePriority()
-                            ->get();
+                        // Priority: Arabic > first available active language
+                        // First try to get Arabic translation
+                        $arabicText = $record->verseTexts()
+                            ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
+                            ->join('languages', 'translations.language_id', '=', 'languages.id')
+                            ->where('languages.code', 'ar')
+                            ->where('languages.is_active', true)
+                            ->select('verse_texts.*')
+                            ->first();
                         
-                        // Load relationships manually (cannot use ->with() after JOINs)
-                        if ($texts->isNotEmpty()) {
-                            $texts->load('translation.language');
+                        // If Arabic not found, get first available active language
+                        if (!$arabicText) {
+                            $texts = $record->verseTexts()
+                                ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
+                                ->join('languages', 'translations.language_id', '=', 'languages.id')
+                                ->where('languages.is_active', true)
+                                ->select('verse_texts.*')
+                                ->orderBy('languages.code')
+                                ->first();
+                            
+                            if ($texts) {
+                                $texts->load('translation.language');
+                                return \Illuminate\Support\Str::limit($texts->text, 100);
+                            }
+                            
+                            return 'N/A';
                         }
                         
-                        $firstText = $texts->first();
-                        return $firstText ? \Illuminate\Support\Str::limit($firstText->text, 100) : 'N/A';
+                        // Load relationships manually (cannot use ->with() after JOINs)
+                        $arabicText->load('translation.language');
+                        return \Illuminate\Support\Str::limit($arabicText->text, 100);
                     })
                     ->wrap()
                     ->extraAttributes(function (QuranVerse $record): array {
-                        // orderByLanguagePriority already filters by active languages
-                        $texts = $record->verseTexts()
-                            ->orderByLanguagePriority()
-                            ->get();
+                        // Priority: Arabic > first available active language
+                        // First try to get Arabic translation
+                        $arabicText = $record->verseTexts()
+                            ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
+                            ->join('languages', 'translations.language_id', '=', 'languages.id')
+                            ->where('languages.code', 'ar')
+                            ->where('languages.is_active', true)
+                            ->select('verse_texts.*')
+                            ->first();
                         
-                        // Load relationships manually
-                        if ($texts->isNotEmpty()) {
-                            $texts->load('translation.language');
+                        // If Arabic not found, get first available active language
+                        if (!$arabicText) {
+                            $texts = $record->verseTexts()
+                                ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
+                                ->join('languages', 'translations.language_id', '=', 'languages.id')
+                                ->where('languages.is_active', true)
+                                ->select('verse_texts.*')
+                                ->orderBy('languages.code')
+                                ->first();
+                            
+                            if ($texts) {
+                                $texts->load('translation.language');
+                                return [
+                                    'dir' => $texts->translation->language->is_rtl ? 'rtl' : 'ltr',
+                                ];
+                            }
+                            
+                            return ['dir' => 'ltr'];
                         }
                         
-                        $firstText = $texts->first();
+                        // Load relationships manually
+                        $arabicText->load('translation.language');
                         return [
-                            'dir' => $firstText?->translation?->language?->is_rtl ? 'rtl' : 'ltr',
+                            'dir' => $arabicText->translation->language->is_rtl ? 'rtl' : 'ltr',
                         ];
                     }),
             ])
