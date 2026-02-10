@@ -84,7 +84,13 @@ class AdhkarResource extends Resource
 
                         Forms\Components\Select::make('category_id')
                             ->label('Content Category')
-                            ->options(Category::query()->pluck('name', 'id'))
+                            ->options(function () {
+                                return Category::with('translations')->get()
+                                    ->mapWithKeys(fn ($cat) => [
+                                        $cat->id => (string) ($cat->getName() ?? "Category #{$cat->id}"),
+                                    ])
+                                    ->all();
+                            })
                             ->searchable()
                             ->preload(),
 
