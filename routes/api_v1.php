@@ -1,31 +1,115 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AdhkarController;
+use App\Http\Controllers\Api\V1\AppConfigController;
 use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\UserController;
-use App\Http\Controllers\Api\V1\SystemController;
+use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\DuaController;
+use App\Http\Controllers\Api\V1\EventController;
+use App\Http\Controllers\Api\V1\HadithController;
+use App\Http\Controllers\Api\V1\HomeController;
 use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\OnboardingController;
-use App\Http\Controllers\Api\V1\SettingsController;
-use App\Http\Controllers\Api\V1\SavedItemController;
-use App\Http\Controllers\Api\V1\EventController;
 use App\Http\Controllers\Api\V1\PrayerTimeController;
+use App\Http\Controllers\Api\V1\QuranController;
+use App\Http\Controllers\Api\V1\SavedItemController;
+use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\SystemController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     
-    // System
+    /*
+    |--------------------------------------------------------------------------
+    | System & Configuration
+    |--------------------------------------------------------------------------
+    */
     Route::get('/health', [SystemController::class, 'health']);
     Route::post('/events', [EventController::class, 'store']);
+    
+    // App Configuration (Remote Config)
+    Route::get('/app-config', [AppConfigController::class, 'index']);
+    Route::get('/app-config/settings/{key}', [AppConfigController::class, 'show']);
+    Route::get('/app-config/home-sections', [AppConfigController::class, 'homeSections']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prayer Times
+    |--------------------------------------------------------------------------
+    */
     Route::get('/prayer-times', [PrayerTimeController::class, 'index']);
     Route::get('/calendar/hijri', [PrayerTimeController::class, 'calendar']);
 
-    // External Content (Quran & Hadith)
+    /*
+    |--------------------------------------------------------------------------
+    | Quran (Public)
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('quran')->group(function () {
-        Route::get('/search', [\App\Http\Controllers\Api\ExternalContentController::class, 'searchQuran']);
+        Route::get('/surahs', [QuranController::class, 'surahs']);
+        Route::get('/surahs/{surah}', [QuranController::class, 'surah']);
+        Route::get('/verses/{id}', [QuranController::class, 'verse']);
+        Route::get('/verses/{surah}/{ayah}', [QuranController::class, 'verseByReference']);
+        Route::get('/languages', [QuranController::class, 'languages']);
+        Route::get('/search', [QuranController::class, 'search']);
+        Route::get('/daily', [QuranController::class, 'daily']);
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Hadith (Public)
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('hadith')->group(function () {
-        Route::get('/search', [\App\Http\Controllers\Api\ExternalContentController::class, 'searchHadith']);
+        Route::get('/', [HadithController::class, 'index']);
+        Route::get('/collections', [HadithController::class, 'collections']);
+        Route::get('/collections/{collection}', [HadithController::class, 'collection']);
+        Route::get('/search', [HadithController::class, 'search']);
+        Route::get('/daily', [HadithController::class, 'daily']);
+        Route::get('/{id}', [HadithController::class, 'show']);
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Duas (Public)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('duas')->group(function () {
+        Route::get('/', [DuaController::class, 'index']);
+        Route::get('/categories', [DuaController::class, 'categories']);
+        Route::get('/search', [DuaController::class, 'search']);
+        Route::get('/{id}', [DuaController::class, 'show']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Adhkar (Public)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('adhkar')->group(function () {
+        Route::get('/', [AdhkarController::class, 'index']);
+        Route::get('/categories', [AdhkarController::class, 'categories']);
+        Route::get('/category/{category}', [AdhkarController::class, 'byCategory']);
+        Route::get('/{id}', [AdhkarController::class, 'show']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Categories (Public)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('categories')->group(function () {
+        Route::get('/', [CategoryController::class, 'index']);
+        Route::get('/{id}', [CategoryController::class, 'show']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Home Dashboard (Public - for non-personalized content)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/home/dashboard', [HomeController::class, 'dashboard']);
 
     // Auth
     Route::prefix('auth')->group(function () {

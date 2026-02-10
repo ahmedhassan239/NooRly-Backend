@@ -98,14 +98,10 @@ class QuranAllLangVerseResource extends Resource
                             ->select('verse_texts.*')
                             ->first();
                         
-                        // If Arabic not found, get first available active language
+                        // If Arabic not found, get first available active language using priority order (en > ar > others)
                         if (!$arabicText) {
                             $texts = $record->verseTexts()
-                                ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
-                                ->join('languages', 'translations.language_id', '=', 'languages.id')
-                                ->where('languages.is_active', true)
-                                ->select('verse_texts.*')
-                                ->orderBy('languages.code')
+                                ->orderByLanguagePriority()
                                 ->first();
                             
                             if ($texts) {
@@ -132,14 +128,10 @@ class QuranAllLangVerseResource extends Resource
                             ->select('verse_texts.*')
                             ->first();
                         
-                        // If Arabic not found, get first available active language
+                        // If Arabic not found, get first available active language using priority order (en > ar > others)
                         if (!$arabicText) {
                             $texts = $record->verseTexts()
-                                ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
-                                ->join('languages', 'translations.language_id', '=', 'languages.id')
-                                ->where('languages.is_active', true)
-                                ->select('verse_texts.*')
-                                ->orderBy('languages.code')
+                                ->orderByLanguagePriority()
                                 ->first();
                             
                             if ($texts) {

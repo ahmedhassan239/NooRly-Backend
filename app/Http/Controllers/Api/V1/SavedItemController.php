@@ -14,12 +14,17 @@ class SavedItemController extends Controller
     use ApiResponseTrait;
 
     /**
+     * Supported item types for saving
+     */
+    private const SUPPORTED_TYPES = ['dua', 'hadith', 'lesson', 'verse', 'adhkar'];
+
+    /**
      * List saved items of a specific type.
      */
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'type' => ['nullable', Rule::in(['dua', 'hadith', 'lesson'])],
+            'type' => ['nullable', Rule::in(self::SUPPORTED_TYPES)],
         ]);
 
         $user = $request->user();
@@ -43,8 +48,8 @@ class SavedItemController extends Controller
      */
     public function store(Request $request, string $type, string $itemId): JsonResponse
     {
-        if (!in_array($type, ['dua', 'hadith', 'lesson'])) {
-            return $this->errorResponse("Invalid item type", 400);
+        if (!in_array($type, self::SUPPORTED_TYPES)) {
+            return $this->errorResponse("Invalid item type. Supported types: " . implode(', ', self::SUPPORTED_TYPES), 400);
         }
 
         $user = $request->user();

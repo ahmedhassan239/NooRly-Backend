@@ -268,32 +268,50 @@ class QuranAllLangController extends Controller
 
     /**
      * Get single verse with all translations
+     * 
+     * Language priority: English (1), Arabic (2), others (3)
+     * This ensures consistent ordering across all API responses.
      */
     public function showVerse(Request $request, int $id): JsonResponse
     {
-        $verse = QuranVerse::with(['verseTexts' => function ($query) use ($request) {
-            $query->with('translation.language');
-            
-            // By default, show only active language translations (unless explicitly requested)
-            if (!$request->boolean('include_inactive')) {
-                $query->forActiveLanguages();
-            }
-            
-            // Filter by language if specified
-            if ($request->has('language')) {
-                $query->whereHas('translation', function ($q) use ($request) {
-                    $q->where('language_id', $request->input('language'));
-                });
-            }
-            
-            // Filter by translation if specified
-            if ($request->has('translation')) {
-                $query->where('translation_id', $request->input('translation'));
-            }
-        }])->findOrFail($id);
+        $verse = QuranVerse::findOrFail($id);
+        
+        // Build verse texts query with proper ordering
+        $verseTextsQuery = $verse->verseTexts();
+        
+        // By default, show only active language translations (unless explicitly requested)
+        if (!$request->boolean('include_inactive')) {
+            $verseTextsQuery->forActiveLanguages();
+        }
+        
+        // Filter by language if specified
+        if ($request->has('language')) {
+            $verseTextsQuery->whereHas('translation', function ($q) use ($request) {
+                $q->where('language_id', $request->input('language'));
+            });
+        }
+        
+        // Filter by translation if specified
+        if ($request->has('translation')) {
+            $verseTextsQuery->where('translation_id', $request->input('translation'));
+        }
+        
+        // Get verse texts and load relationships
+        $verseTexts = $verseTextsQuery->get();
+        $verseTexts->load('translation.language');
+        
+        // Sort by language priority: English (1), Arabic (2), others (3)
+        $sortedVerseTexts = $verseTexts->sortBy(function ($vt) {
+            $code = $vt->translation->language->code ?? '';
+            return match($code) {
+                'en' => 1,
+                'ar' => 2,
+                default => 3,
+            };
+        });
 
-        // Group translations by language
-        $grouped = $verse->verseTexts->groupBy(function ($verseText) {
+        // Group translations by language (maintaining priority order)
+        $grouped = $sortedVerseTexts->groupBy(function ($verseText) {
             return $verseText->translation->language->name;
         })->map(function ($group) {
             return $group->map(function ($verseText) {
