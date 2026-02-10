@@ -18,7 +18,7 @@ return new class extends Migration
         if (Schema::hasTable('duas') && !Schema::hasColumn('duas', 'text_ar_normalized')) {
             Schema::table('duas', function (Blueprint $table) {
                 $table->text('text_ar_normalized')->nullable()->after('text_ar');
-                $table->index('text_ar_normalized', 'duas_text_ar_normalized_index');
+                $table->fullText('text_ar_normalized', 'duas_text_ar_normalized_fulltext');
             });
         }
 
@@ -51,7 +51,7 @@ return new class extends Migration
     {
         if (Schema::hasTable('duas') && Schema::hasColumn('duas', 'text_ar_normalized')) {
             Schema::table('duas', function (Blueprint $table) {
-                $table->dropIndex('duas_text_ar_normalized_index');
+                $table->dropFullText('duas_text_ar_normalized_fulltext');
                 $table->dropColumn('text_ar_normalized');
             });
         }
