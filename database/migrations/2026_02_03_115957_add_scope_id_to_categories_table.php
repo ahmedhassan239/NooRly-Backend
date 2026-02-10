@@ -14,34 +14,13 @@ return new class extends Migration
         Schema::table('categories', function (Blueprint $table) {
             if (!Schema::hasColumn('categories', 'scope_id')) {
                 $table->unsignedBigInteger('scope_id')->nullable()->after('id');
-            }
-        });
-
-        // Add index if it doesn't exist
-        $connection = Schema::getConnection();
-        $indexes = $connection->select("SHOW INDEXES FROM categories WHERE Key_name = 'categories_scope_id_index'");
-        if (empty($indexes)) {
-            Schema::table('categories', function (Blueprint $table) {
                 $table->index('scope_id');
-            });
-        }
-
-        // Add foreign key if it doesn't exist
-        $foreignKeys = $connection->select("
-            SELECT CONSTRAINT_NAME 
-            FROM information_schema.KEY_COLUMN_USAGE 
-            WHERE TABLE_SCHEMA = DATABASE() 
-            AND TABLE_NAME = 'categories' 
-            AND CONSTRAINT_NAME = 'categories_scope_id_foreign'
-        ");
-        if (empty($foreignKeys)) {
-            Schema::table('categories', function (Blueprint $table) {
                 $table->foreign('scope_id')
                     ->references('id')
                     ->on('content_scopes')
                     ->onDelete('restrict');
-            });
-        }
+            }
+        });
     }
 
     /**

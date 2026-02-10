@@ -138,15 +138,12 @@ class AuthController extends Controller
     {
         $user->load(['profile', 'providers']);
         
-        return response()->json([
+        $data = [
             'token' => $token,
             'token_type' => 'Bearer',
             'user' => new AppUserResource($user),
-            'meta' => [
-                'lang' => app()->getLocale(),
-                'timestamp' => now()->toIso8601String(),
-            ],
-            'message' => 'Authenticated successfully',
-        ]);
+        ];
+
+        return $this->successResponse($data, 'Authenticated successfully');
     }
 }

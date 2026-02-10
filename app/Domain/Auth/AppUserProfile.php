@@ -12,6 +12,7 @@ class AppUserProfile extends Model
     protected $fillable = [
         'app_user_id',
         'name',
+        'avatar',
         'gender',
         'birth_date',
         'locale',

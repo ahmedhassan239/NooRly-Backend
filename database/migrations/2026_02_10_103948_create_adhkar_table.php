@@ -29,7 +29,9 @@ return new class extends Migration
         });
 
         // Add full-text index for Arabic search
-        \DB::statement('ALTER TABLE adhkar ADD FULLTEXT INDEX adhkar_text_normalized_fulltext (text_ar_normalized)');
+        if (\DB::getDriverName() !== 'sqlite') {
+            \DB::statement('ALTER TABLE adhkar ADD FULLTEXT INDEX adhkar_text_normalized_fulltext (text_ar_normalized)');
+        }
     }
 
     /**

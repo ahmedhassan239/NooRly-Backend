@@ -42,19 +42,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->table('verse_texts', function (Blueprint $table) {
-            // Add normalized text column after the text column
-            // LONGTEXT to match the original text column type
-            $table->longText('text_normalized')->nullable()->after('text');
-        });
-
-        // Add FULLTEXT index for Arabic search
-        // Note: FULLTEXT with ngram parser works better for Chinese/Japanese/Korean
-        // For Arabic, standard FULLTEXT works but has limitations with short words
-        // The main benefit here is the pre-normalized data for LIKE queries
-        Schema::connection($this->connection)->table('verse_texts', function (Blueprint $table) {
-            $table->fullText('text_normalized', 'verse_texts_text_normalized_fulltext');
-        });
+        if (!Schema::connection($this->connection)->hasColumn('verse_texts', 'text_normalized')) {
+            Schema::connection($this->connection)->table('verse_texts', function (Blueprint $table) {
+                // Add normalized text column after the text column
+                // LONGTEXT to match the original text column type
+                $table->longText('text_normalized')->nullable()->after('text');
+                $table->fullText('text_normalized', 'verse_texts_text_normalized_fulltext');
+            });
+        }
     }
 
     /**

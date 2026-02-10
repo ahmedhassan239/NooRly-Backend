@@ -64,6 +64,7 @@ class SocialAuthAction
 
             $user->profile()->create([
                 'name' => $socialData['name'],
+                'avatar' => $socialData['avatar'] ?? null,
                 'locale' => app()->getLocale(),
             ]);
 

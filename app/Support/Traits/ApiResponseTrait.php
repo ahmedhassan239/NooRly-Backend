@@ -18,12 +18,13 @@ trait ApiResponseTrait
     protected function successResponse(mixed $data, ?string $message = null, int $code = 200, array $meta = []): JsonResponse
     {
         $response = [
+            'status' => true,
+            'message' => $message,
             'data' => $data,
             'meta' => array_merge([
                 'lang' => app()->getLocale(),
                 'timestamp' => now()->toIso8601String(),
             ], $meta),
-            'message' => $message,
         ];
 
         return response()->json($response, $code);
@@ -40,13 +41,14 @@ trait ApiResponseTrait
     protected function errorResponse(string $message, int $code = 400, array $errors = []): JsonResponse
     {
         $response = [
+            'status' => false,
+            'message' => $message,
             'data' => null,
             'meta' => [
                 'lang' => app()->getLocale(),
                 'timestamp' => now()->toIso8601String(),
                 'errors' => $errors,
             ],
-            'message' => $message,
         ];
 
         return response()->json($response, $code);
