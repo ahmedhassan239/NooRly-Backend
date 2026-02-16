@@ -7,8 +7,10 @@ use App\Application\Auth\GuestAuthAction;
 use App\Application\Auth\RegisterAction;
 use App\Application\Auth\LoginAction;
 use App\Application\Auth\SocialAuthAction;
+use App\Domain\Auth\AppUserProvider;
 use App\Http\Resources\Api\V1\AppUserResource;
 use App\Support\Traits\ApiResponseTrait;
+use App\Services\Auth\EmailOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Exception;
@@ -16,6 +18,13 @@ use Exception;
 class AuthController extends Controller
 {
     use ApiResponseTrait;
+
+    protected EmailOtpService $emailOtpService;
+
+    public function __construct(EmailOtpService $emailOtpService)
+    {
+        $this->emailOtpService = $emailOtpService;
+    }
 
     /**
      * Authenticate or create a guest user.
@@ -39,6 +48,9 @@ class AuthController extends Controller
 
     /**
      * Register a new user.
+     * Never issues a token; returns needs_email_verification until OTP is verified.
+     * If email exists but is not verified: resend OTP and return needs_email_verification (200).
+     * If email exists and is verified: return 409 "Email already registered".
      */
     public function register(Request $request, RegisterAction $action)
     {
@@ -46,8 +58,8 @@ class AuthController extends Controller
             'email' => 'required|email|max:255',
             'password' => 'required|string|min:8',
             'name' => 'required|string|max:255',
-            'gender' => 'nullable|string|in:male,female,other,unknown',
-            'birth_date' => 'nullable|date',
+            'gender' => 'nullable|string|in:male,female',
+            'birth_date' => 'nullable|date|before:today',
             'locale' => 'nullable|string|in:en,ar',
         ]);
 
@@ -55,10 +67,42 @@ class AuthController extends Controller
             return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
         }
 
+        $email = $request->email;
+
+        $existingProvider = AppUserProvider::where('provider', 'email')
+            ->where('email', $email)
+            ->first();
+
+        if ($existingProvider) {
+            $user = $existingProvider->user;
+            if (!$user) {
+                return $this->errorResponse("Invalid state.", 500);
+            }
+            if ($user->email_verified_at) {
+                return $this->errorResponse("Email already registered", 409);
+            }
+            try {
+                $this->emailOtpService->sendOtpForUser($user, $email);
+            } catch (Exception $e) {
+                // Cooldown/rate limit: still send user to OTP screen so they can resend there
+            }
+            return $this->successResponse([
+                'needs_email_verification' => true,
+                'email' => $email,
+            ], "Please verify your email.", 200);
+        }
+
         try {
             $user = $action->execute($request->all());
-            $token = $user->createToken('auth_token')->plainTextToken;
-            return $this->authResponse($user, $token);
+            try {
+                $this->emailOtpService->sendOtpForUser($user, $email);
+            } catch (Exception $e) {
+                // Cooldown/rate limit: still return success so user can go to OTP screen
+            }
+            return $this->successResponse([
+                'needs_email_verification' => true,
+                'email' => $email,
+            ], "Registration successful. Please verify your email.", 200);
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -80,10 +124,64 @@ class AuthController extends Controller
 
         try {
             $user = $action->execute($request->email, $request->password);
+            
+            if (!$user->email_verified_at) {
+                $this->emailOtpService->sendOtpForUser($user);
+                return $this->successResponse([
+                    'needs_email_verification' => true,
+                    'email' => $request->email,
+                ], "Please verify your email.");
+            }
+
             $token = $user->createToken('auth_token')->plainTextToken;
             return $this->authResponse($user, $token);
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage(), 401);
+        }
+    }
+
+    /**
+     * Send OTP to email.
+     */
+    public function sendEmailOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $this->emailOtpService->sendOtpByEmail($request->email);
+        } catch (Exception $e) {
+            // Always return generic success to avoid enumeration; OTP sent only when user exists and is unverified
+        }
+        return $this->successResponse(null, "If the email exists, an OTP has been sent.", 200);
+    }
+
+    /**
+     * Verify OTP.
+     */
+    public function verifyEmailOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'otp' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $user = $this->emailOtpService->verifyOtp($request->email, $request->otp);
+            $token = $user->createToken('auth_token')->plainTextToken;
+            return $this->authResponse($user, $token);
+        } catch (Exception $e) {
+            $code = $e->getCode() === 429 ? 429 : 422;
+            return $this->errorResponse($e->getMessage(), $code);
         }
     }
 

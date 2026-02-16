@@ -26,21 +26,13 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'status' => true,
-                'message' => 'Authenticated successfully',
-            ])
-            ->assertJsonStructure([
-                'status',
-                'message',
+                'message' => 'Registration successful. Please verify your email.',
                 'data' => [
-                    'token',
-                    'token_type',
-                    'user' => [
-                        'uuid',
-                        'email', // Depending on resource
-                    ]
+                    'needs_email_verification' => true,
+                    'email' => 'test@example.com',
                 ],
-                'meta'
-            ]);
+            ])
+            ->assertJsonMissingPath('data.token');
 
         $this->assertDatabaseHas('app_users', [
             'status' => 'active'
@@ -55,12 +47,10 @@ class AuthenticationTest extends TestCase
     #[Test]
     public function it_can_login_existing_user()
     {
-        // Create user logic manually or via factory if available.
-        // Since factories might not be set up for AppUserProvider, doing it manually.
-        
         $user = AppUser::create([
             'status' => 'active',
             'last_active_at' => now(),
+            'email_verified_at' => now(),
         ]);
         
         $user->providers()->create([
@@ -80,7 +70,8 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.user.email', 'login@example.com');
+            ->assertJsonPath('data.user.email', 'login@example.com')
+            ->assertJsonStructure(['data' => ['token', 'user']]);
     }
 
     #[Test]
@@ -112,10 +103,9 @@ class AuthenticationTest extends TestCase
     #[Test]
     public function it_can_get_me()
     {
-        $user = AppUser::create(['status' => 'active']);
+        $user = AppUser::create(['status' => 'active', 'email_verified_at' => now()]);
         $user->profile()->create(['name' => 'Me User', 'locale' => 'en']);
         
-        // Create a token (Sanctum)
         $token = $user->createToken('test-token')->plainTextToken;
 
         $response = $this->withHeaders([

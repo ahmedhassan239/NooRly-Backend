@@ -17,10 +17,12 @@ class AppUser extends Authenticatable
         'uuid',
         'status',
         'last_active_at',
+        'email_verified_at',
     ];
 
     protected $casts = [
         'last_active_at' => 'datetime',
+        'email_verified_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -29,6 +31,11 @@ class AppUser extends Authenticatable
         static::creating(function ($model) {
             $model->uuid = (string) Str::uuid();
         });
+    }
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\AppUserFactory::new();
     }
 
     public function providers()

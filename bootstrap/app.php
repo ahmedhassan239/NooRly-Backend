@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'verified.email' => \App\Http\Middleware\EnsureEmailVerified::class,
+        ]);
+        
         $middleware->api(prepend: [
             \App\Http\Middleware\SetRequestLanguage::class,
             \App\Http\Middleware\UpdateLastActiveMiddleware::class,

@@ -18,8 +18,8 @@ class UserController extends Controller
     public function me(Request $request)
     {
         $user = $request->user();
-        $user->load(['profile', 'providers']);
-        
+        $user->load(['profile', 'providers', 'onboarding']);
+
         return $this->successResponse(new AppUserResource($user));
     }
 

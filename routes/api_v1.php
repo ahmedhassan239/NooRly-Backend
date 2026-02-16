@@ -118,11 +118,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/social/{provider}', [AuthController::class, 'social']);
         
+        // Email OTP
+        Route::post('/email/send-otp', [AuthController::class, 'sendEmailOtp']);
+        Route::post('/email/verify-otp', [AuthController::class, 'verifyEmailOtp']);
+        
         Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
     });
 
     // User (Protected)
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'verified.email'])->group(function () {
         Route::get('/me', [UserController::class, 'me']);
         Route::put('/me/profile', [UserController::class, 'updateProfile']);
         

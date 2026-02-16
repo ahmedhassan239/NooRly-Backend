@@ -38,7 +38,7 @@ class RegisterAction
                 'password' => Hash::make($data['password']),
             ]);
 
-            // Create profile
+            // Create profile (name from request; email on provider; gender/birth_date optional)
             $user->profile()->create([
                 'name' => $data['name'],
                 'gender' => $data['gender'] ?? 'unknown',
