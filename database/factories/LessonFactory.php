@@ -15,7 +15,6 @@ class LessonFactory extends Factory
     public function definition(): array
     {
         return [
-            'day_number' => fake()->numberBetween(1, 30),
             'title' => fake()->sentence(),
             'content' => ['text' => fake()->paragraph()],
             'type' => 'text',

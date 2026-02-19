@@ -11,6 +11,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use FilamentTiptapEditor\TiptapEditor;
 
 class DuaResource extends Resource
 {
@@ -64,10 +65,11 @@ class DuaResource extends Resource
                     ->tabs([
                         Forms\Components\Tabs\Tab::make('English')
                             ->schema([
-                                Forms\Components\RichEditor::make('text_en')
+                                TiptapEditor::make('text_en')
                                     ->label('English Text')
                                     ->nullable()
-                                    ->columnSpanFull(),
+                                    ->columnSpanFull()
+                                    ->profile('default'),
                                 
                                 Forms\Components\Textarea::make('transliteration')
                                     ->label('Transliteration')
@@ -77,10 +79,11 @@ class DuaResource extends Resource
                         
                         Forms\Components\Tabs\Tab::make('Arabic')
                             ->schema([
-                                Forms\Components\RichEditor::make('text_ar')
+                                TiptapEditor::make('text_ar')
                                     ->label('Arabic Text')
                                     ->required()
                                     ->columnSpanFull()
+                                    ->profile('default')
                                     ->extraInputAttributes(['dir' => 'rtl']),
                             ]),
                     ])->columnSpanFull(),

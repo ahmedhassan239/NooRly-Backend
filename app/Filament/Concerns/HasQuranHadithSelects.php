@@ -4,19 +4,20 @@ namespace App\Filament\Concerns;
 
 use App\Contracts\HadithSearchServiceInterface;
 use App\Contracts\QuranSearchServiceInterface;
-use App\Domain\QuranAllLang\Models\QuranVerse;
 use Filament\Forms\Components\Select;
 
 /**
  * Trait HasQuranHadithSelects
- * 
+ *
  * Provides methods to create Quran Ayahs and Hadith Items select fields.
+ * Quran Ayah labels are "Surah Name • Ayah Number" (locale-aware via QuranSearchService).
  */
 trait HasQuranHadithSelects
 {
     /**
      * Get Quran Ayahs (verses) multi-select field.
-     * 
+     * Labels show "Surah Name • AyahNo" (EN or AR per app locale). Search works by Arabic text and surah name.
+     *
      * @return Select
      */
     protected static function getQuranAyahsSelectField(): Select
@@ -33,7 +34,7 @@ trait HasQuranHadithSelects
                         ->where('ayahable_id', $record->id)
                         ->pluck('quran_ayah_id')
                         ->toArray();
-                    
+
                     if (!empty($verseIds)) {
                         return $quranService->getVerseLabels($verseIds);
                     }
@@ -65,7 +66,7 @@ trait HasQuranHadithSelects
 
     /**
      * Get Hadith Items multi-select field.
-     * 
+     *
      * @return Select
      */
     protected static function getHadithItemsSelectField(): Select
@@ -82,7 +83,7 @@ trait HasQuranHadithSelects
                         ->where('hadithable_id', $record->id)
                         ->pluck('hadith_item_id')
                         ->toArray();
-                    
+
                     if (!empty($hadithIds)) {
                         return $hadithService->getHadithLabels($hadithIds);
                     }

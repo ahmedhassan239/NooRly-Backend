@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Domain\Lessons\Lesson;
 use App\Domain\Datasets\DatasetVersion;
 use App\Filament\Concerns\HasQuranHadithSelects;
-use App\Filament\Concerns\HasScopeFilteredCategories;
 use App\Filament\Concerns\HasTranslatableTabs;
 use App\Filament\Resources\LessonResource\Pages;
 use Filament\Forms;
@@ -14,12 +13,12 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Notifications\Notification;
+use FilamentTiptapEditor\TiptapEditor;
 use Illuminate\Support\Facades\Storage;
-use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
 
 class LessonResource extends Resource
 {
-    use HasTranslatableTabs, HasScopeFilteredCategories, HasQuranHadithSelects;
+    use HasTranslatableTabs, HasQuranHadithSelects;
     
     protected static ?string $model = Lesson::class;
 
@@ -34,16 +33,11 @@ class LessonResource extends Resource
                 // Non-translatable fields
                 Forms\Components\Section::make('Lesson Settings')
                     ->schema([
-                        Forms\Components\TextInput::make('day_number')
-                            ->required()
-                            ->numeric()
-                            ->label('Day Number')
-                            ->minValue(1)
-                            ->maxValue(90),
                         Forms\Components\Select::make('type')
                             ->options([
                                 'text' => 'Text',
                                 'video' => 'Video',
+                                'week_reflection' => 'Week Reflection',
                             ])
                             ->required()
                             ->default('text'),
@@ -58,11 +52,6 @@ class LessonResource extends Resource
                             ->label('Duration (minutes)'),
                     ])
                     ->columns(2),
-
-                Forms\Components\Section::make('Categories')
-                    ->schema([
-                        static::getCategorySelectField('lessons'),
-                    ]),
 
                 Forms\Components\Section::make('Quran Ayahs (Ayat)')
                     ->schema([
@@ -82,11 +71,13 @@ class LessonResource extends Resource
                             ->required($isRequired)
                             ->maxLength(255)
                             ->live(onBlur: true)
-                            ->afterStateUpdated(function ($state, callable $set) use ($langCode, $isRequired) {
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) use ($langCode, $isRequired) {
                                 if ($isRequired && empty($state)) {
                                     return;
                                 }
-                                $set("{$langCode}_slug", \Illuminate\Support\Str::slug($state));
+                                if (! $get("{$langCode}_customize_slug")) {
+                                    $set("{$langCode}_slug", \Illuminate\Support\Str::slug($state));
+                                }
                             }),
                         
                         Forms\Components\Grid::make(2)
@@ -97,12 +88,10 @@ class LessonResource extends Resource
                                     ->unique(
                                         table: 'lesson_translations',
                                         column: 'slug',
-                                        modifyRuleUsing: function ($rule, $record) use ($langCode) {
-                                            $rule->where('language_code', $langCode);
-                                            return $record ? $rule->where('lesson_id', '!=', $record->id) : $rule;
-                                        }
+                                        ignorable: fn ($component) => $component->getRecord()?->translations()->where('language_code', $langCode)->first(),
+                                        modifyRuleUsing: fn ($rule) => $rule->where('language_code', $langCode)
                                     )
-                                    ->disabled(fn ($get) => !$get("{$langCode}_customize_slug")),
+                                    ->disabled(fn ($get) => ! $get("{$langCode}_customize_slug")),
                                 Forms\Components\Toggle::make("{$langCode}_customize_slug")
                                     ->label('Customize Slug')
                                     ->default(false)
@@ -116,13 +105,13 @@ class LessonResource extends Resource
                             ->columnSpanFull()
                             ->helperText(fn ($state): string => (300 - strlen($state ?? '')) . ' characters remaining'),
                         
-                        TinyEditor::make("{$langCode}_content")
+                        TiptapEditor::make("{$langCode}_content")
                             ->label('Content')
                             ->required($isRequired)
                             ->columnSpanFull()
-                            ->fileAttachmentsDisk('public')
-                            ->fileAttachmentsDirectory('lessons/images')
-                            ->profile('default'),
+                            ->profile('default')
+                            ->disk('public')
+                            ->directory('lessons/images'),
                     ];
                 }),
             ]);
@@ -132,10 +121,6 @@ class LessonResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('day_number')
-                    ->numeric()
-                    ->sortable()
-                    ->label('Day'),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()
                     ->label('Title (EN)')
@@ -147,6 +132,7 @@ class LessonResource extends Resource
                     ->color(fn (string $state): string => match ($state) {
                         'video' => 'success',
                         'text' => 'info',
+                        'week_reflection' => 'warning',
                         default => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('duration_minutes')
@@ -163,6 +149,7 @@ class LessonResource extends Resource
                     ->options([
                         'text' => 'Text',
                         'video' => 'Video',
+                        'week_reflection' => 'Week Reflection',
                     ]),
             ])
             ->actions([
@@ -176,26 +163,39 @@ class LessonResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->action(function () {
-                        $lessons = Lesson::all();
-                        
                         $locales = ['en', 'ar'];
-                        
+                        // Build journey order: first occurrence of each lesson gets global day 1, 2, 3...
+                        $ordered = \App\Domain\Journey\JourneyWeekLesson::orderBy('journey_week_id')->orderBy('sort_order')->get();
+                        $globalDayByLessonId = [];
+                        $day = 1;
+                        foreach ($ordered as $row) {
+                            if (! isset($globalDayByLessonId[$row->lesson_id])) {
+                                $globalDayByLessonId[$row->lesson_id] = $day++;
+                            }
+                        }
+                        $lessonIds = array_keys($globalDayByLessonId);
+                        $lessons = $lessonIds ? Lesson::with('translations')->whereIn('id', $lessonIds)->get()->keyBy('id') : collect();
+
                         foreach ($locales as $locale) {
-                            $data = $lessons->map(function ($lesson) use ($locale) {
-                                $translation = $lesson->translations()->where('language_code', $locale)->first() 
+                            $data = collect($lessonIds)->map(function ($id) use ($lessons, $locale, $globalDayByLessonId) {
+                                $lesson = $lessons->get($id);
+                                if (! $lesson) {
+                                    return null;
+                                }
+                                $translation = $lesson->translations()->where('language_code', $locale)->first()
                                     ?? $lesson->translations()->where('language_code', 'en')->first();
-                                
+                                $dayNum = $globalDayByLessonId[$id];
                                 return [
                                     'id' => 'lesson_' . $lesson->id,
-                                    'day_number' => (int)$lesson->day_number,
-                                    'week_number' => (int)(($lesson->day_number - 1) / 7) + 1,
+                                    'day_number' => (int) $dayNum,
+                                    'week_number' => (int) (($dayNum - 1) / 7) + 1,
                                     'title' => $translation?->title ?? 'N/A',
                                     'summary' => $translation?->short_description ?? '',
                                     'content' => $translation?->content ?? '',
-                                    'estimated_minutes' => (int)$lesson->duration_minutes,
-                                    'tags' => [], // Placeholder
+                                    'estimated_minutes' => (int) $lesson->duration_minutes,
+                                    'tags' => [],
                                 ];
-                            })->values()->toArray();
+                            })->filter()->values()->toArray();
 
                             $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
                             $path = 'content/lessons/' . $locale . '.json';
@@ -218,7 +218,7 @@ class LessonResource extends Resource
                             ->send();
                     })
             ])
-            ->defaultSort('day_number', 'asc');
+            ->defaultSort('created_at', 'asc');
     }
 
     public static function getPages(): array

@@ -22,7 +22,6 @@ class I18nTranslationFallbackTest extends TestCase
     public function test_returns_arabic_when_translation_exists()
     {
         $lesson = Lesson::create([
-            'day_number' => 1,
             'type' => 'text',
             'duration_minutes' => 10,
         ]);
@@ -48,7 +47,6 @@ class I18nTranslationFallbackTest extends TestCase
     public function test_falls_back_to_english_when_arabic_missing()
     {
         $lesson = Lesson::create([
-            'day_number' => 1,
             'type' => 'text',
             'duration_minutes' => 10,
         ]);
@@ -69,7 +67,6 @@ class I18nTranslationFallbackTest extends TestCase
     public function test_search_works_on_arabic_translation()
     {
         $lesson = Lesson::create([
-            'day_number' => 1,
             'type' => 'text',
             'duration_minutes' => 10,
         ]);
@@ -96,7 +93,6 @@ class I18nTranslationFallbackTest extends TestCase
     public function test_search_falls_back_to_english_when_arabic_missing()
     {
         $lesson = Lesson::create([
-            'day_number' => 1,
             'type' => 'text',
             'duration_minutes' => 10,
         ]);
@@ -118,11 +114,11 @@ class I18nTranslationFallbackTest extends TestCase
     public function test_sorting_works_with_coalesce()
     {
         // Create lessons with mixed translations
-        $lesson1 = Lesson::create(['day_number' => 1, 'type' => 'text', 'duration_minutes' => 10]);
+        $lesson1 = Lesson::create(['type' => 'text', 'duration_minutes' => 10]);
         $lesson1->translations()->create(['language_code' => 'en', 'title' => 'B English', 'content' => '{}']);
         $lesson1->translations()->create(['language_code' => 'ar', 'title' => 'أ عربي', 'content' => '{}']); // 'أ' comes first in Arabic
 
-        $lesson2 = Lesson::create(['day_number' => 2, 'type' => 'text', 'duration_minutes' => 10]);
+        $lesson2 = Lesson::create(['type' => 'text', 'duration_minutes' => 10]);
         $lesson2->translations()->create(['language_code' => 'en', 'title' => 'A English', 'content' => '{}']);
         // No Arabic translation
 

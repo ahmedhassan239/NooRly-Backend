@@ -63,6 +63,14 @@ class AppUser extends Authenticatable
         return $this->hasMany(\App\Domain\Lessons\LessonCompletion::class, 'app_user_id');
     }
 
+    /**
+     * Alias for querying completed lesson records (e.g. where('lesson_id', $id)).
+     */
+    public function completedLessons()
+    {
+        return $this->lessonCompletions();
+    }
+
     public function lessonReflections()
     {
         return $this->hasMany(\App\Domain\Lessons\LessonReflection::class, 'app_user_id');

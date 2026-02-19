@@ -23,7 +23,6 @@ class IslamicContentSeeder extends Seeder
     {
         $lessons = [
             [
-                'day_number' => 1,
                 'title' => 'Welcome & The Shahada',
                 'content' => [
                     'blocks' => [
@@ -36,7 +35,6 @@ class IslamicContentSeeder extends Seeder
                 'duration_minutes' => 5,
             ],
             [
-                'day_number' => 2,
                 'title' => 'Who is Allah?',
                 'content' => [
                     'blocks' => [
@@ -47,7 +45,6 @@ class IslamicContentSeeder extends Seeder
                 'duration_minutes' => 7,
             ],
             [
-                'day_number' => 3,
                 'title' => 'Introduction to Wudu (Ablution)',
                 'content' => [
                     'blocks' => [
@@ -61,7 +58,7 @@ class IslamicContentSeeder extends Seeder
         ];
 
         foreach ($lessons as $lesson) {
-            Lesson::firstOrCreate(['day_number' => $lesson['day_number']], $lesson);
+            Lesson::firstOrCreate(['title' => $lesson['title']], $lesson);
         }
     }
 

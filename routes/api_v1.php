@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\DuaController;
 use App\Http\Controllers\Api\V1\EventController;
+use App\Http\Controllers\Api\V1\JourneyController;
 use App\Http\Controllers\Api\V1\HadithController;
 use App\Http\Controllers\Api\V1\HomeController;
 use App\Http\Controllers\Api\V1\LessonController;
@@ -140,6 +141,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/saved', [SavedItemController::class, 'index']);
         Route::post('/saved/{type}/{itemId}', [SavedItemController::class, 'store']);
         Route::delete('/saved/{type}/{itemId}', [SavedItemController::class, 'destroy']);
+
+        // Journey (weeks + lessons)
+        Route::get('/journey', [JourneyController::class, 'index']);
+        Route::get('/journey/weeks/{week}', [JourneyController::class, 'week']);
 
         // Lessons
         Route::prefix('lessons')->group(function () {

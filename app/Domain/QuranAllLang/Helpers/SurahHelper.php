@@ -259,4 +259,29 @@ class SurahHelper
     {
         return self::getArabicSurahNames()[$number] ?? "سورة {$number}";
     }
+
+    /**
+     * Find surah number by name (English or Arabic), for search.
+     *
+     * @return int|null 1-114 or null if no match
+     */
+    public static function findSurahNumberByName(string $name): ?int
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+        $nameLower = mb_strtolower($name);
+        foreach (self::getSurahNames() as $num => $en) {
+            if (mb_strtolower($en) === $nameLower) {
+                return $num;
+            }
+        }
+        foreach (self::getArabicSurahNames() as $num => $ar) {
+            if (mb_strtolower($ar) === $nameLower) {
+                return $num;
+            }
+        }
+        return null;
+    }
 }

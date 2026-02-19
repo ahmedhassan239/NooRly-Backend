@@ -24,7 +24,6 @@ class BilingualContentSeeder extends Seeder
 
         foreach ($lessons as $lessonData) {
             $lesson = Lesson::create([
-                'day_number' => $lessonData['day'],
                 'type' => $lessonData['type'],
                 'video_url' => $lessonData['type'] === 'video' ? 'https://example.com/video' . $lessonData['day'] : null,
                 'duration_minutes' => 10,

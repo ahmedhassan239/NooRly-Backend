@@ -4,6 +4,7 @@ namespace App\Application\Home;
 
 use App\Domain\Auth\AppUser;
 use App\Domain\Duas\Dua;
+use App\Domain\Journey\JourneyWeekLesson;
 use App\Domain\Lessons\Lesson;
 use App\Domain\Prayers\Contracts\PrayerTimeProvider;
 use App\Domain\Tasks\DailyTask;
@@ -19,8 +20,14 @@ class GetHomeDashboardDataAction
     {
         $today = Carbon::now($user->timezone ?? 'UTC');
 
-        // 1. Get Daily Lesson
-        $lesson = Lesson::where('day_number', $user->current_day)->first();
+        // 1. Get Daily Lesson (Nth lesson in journey order, N = current_day)
+        $pivot = JourneyWeekLesson::query()
+            ->with('lesson')
+            ->orderBy('journey_week_id')
+            ->orderBy('sort_order')
+            ->skip(max(0, (int) $user->current_day - 1))
+            ->first();
+        $lesson = $pivot?->lesson;
         $isLessonCompleted = $user->completedLessons()->where('lesson_id', $lesson?->id)->exists();
 
         // 2. Get Daily Tasks

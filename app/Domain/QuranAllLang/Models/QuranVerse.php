@@ -129,4 +129,17 @@ class QuranVerse extends Model
     {
         return "{$this->surah_number}:{$this->ayah_number}";
     }
+
+    /**
+     * Admin/select label: "(Arabic surah name: ayah_number) ayah Arabic text".
+     * Uses first available Arabic verse text. For bulk labels use QuranSearchService::getVerseLabels() to avoid N+1.
+     */
+    public function getAdminSelectLabelAttribute(): string
+    {
+        $text = $this->verseTexts()
+            ->whereHas('translation.language', fn (Builder $q) => $q->where('code', 'ar'))
+            ->value('text') ?? '';
+
+        return \App\Domain\QuranAllLang\Helpers\QuranVerseLabel::forAdminWithText($this, $text);
+    }
 }

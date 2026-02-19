@@ -86,17 +86,17 @@ class LessonController extends Controller
     }
 
     /**
-     * Get lesson detail.
+     * Get lesson detail (resolves from DB when id is numeric, else dataset).
      */
     public function show(Request $request, string $id): JsonResponse
     {
         $lang = app()->getLocale();
         $user = $request->user();
-        
-        $lesson = $this->datasetService->findById($id, $lang);
 
-        if (!$lesson) {
-            return $this->errorResponse("Lesson not found", 404);
+        $lesson = $this->lessonService->findByIdForApi($id, $lang);
+
+        if (! $lesson) {
+            return $this->errorResponse('Lesson not found', 404);
         }
 
         $lesson = $this->lessonService->enrichLessonWithState($user, $lesson);
@@ -105,40 +105,33 @@ class LessonController extends Controller
     }
 
     /**
-     * Mark lesson as complete.
+     * Mark lesson as complete (DB or dataset lesson id).
      */
     public function complete(Request $request, string $id): JsonResponse
     {
-        $user = $request->user();
-        
-        // Find if lesson exists in dataset
-        $lesson = $this->datasetService->findById($id);
-        if (!$lesson) {
-            return $this->errorResponse("Lesson not found", 404);
+        if (! $this->lessonService->lessonExists($id)) {
+            return $this->errorResponse('Lesson not found', 404);
         }
 
-        $this->lessonService->completeLesson($user, $id);
+        $this->lessonService->completeLesson($request->user(), (string) $id);
 
-        return $this->successResponse(null, "Lesson marked as complete");
+        return $this->successResponse(null, 'Lesson marked as complete');
     }
 
     /**
-     * Save/Update reflection.
+     * Save/Update reflection (works for week_reflection type too).
      */
     public function reflection(Request $request, string $id): JsonResponse
     {
         $request->validate(['reflection_text' => 'required|string']);
-        
-        $user = $request->user();
-        $lesson = $this->datasetService->findById($id);
-        
-        if (!$lesson) {
-            return $this->errorResponse("Lesson not found", 404);
+
+        if (! $this->lessonService->lessonExists($id)) {
+            return $this->errorResponse('Lesson not found', 404);
         }
 
-        $this->lessonService->saveReflection($user, $id, $request->reflection_text);
+        $this->lessonService->saveReflection($request->user(), (string) $id, $request->reflection_text);
 
-        return $this->successResponse(null, "Reflection saved successfully");
+        return $this->successResponse(null, 'Reflection saved successfully');
     }
 
     /**

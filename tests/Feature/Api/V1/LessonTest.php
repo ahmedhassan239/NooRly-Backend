@@ -31,7 +31,7 @@ class LessonTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->getJson("/api/v1/lessons/{$lesson->id}");
 
         $response->assertOk()
-            ->assertJsonPath('data.id', $lesson->id);
+            ->assertJsonPath('data.id', (string) $lesson->id);
     }
 
     public function test_complete_lesson()

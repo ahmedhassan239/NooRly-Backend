@@ -3,6 +3,8 @@
 namespace App\Services\Quran;
 
 use App\Contracts\QuranSearchServiceInterface;
+use App\Domain\QuranAllLang\Helpers\QuranVerseLabel;
+use App\Domain\QuranAllLang\Helpers\SurahHelper;
 use App\Support\Arabic\ArabicTextNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -82,21 +84,60 @@ class QuranSearchService implements QuranSearchServiceInterface
             ->limit($limit)
             ->get();
 
-        return $results->mapWithKeys(function ($row) use ($normalizedTerm) {
-            return [
-                $row->verse_id => $this->formatVerseLabelWithMatch(
-                    $row->ayah_key,
-                    $row->text,
-                    $row->text_normalized,
-                    $normalizedTerm
-                ),
-            ];
+        $byText = $results->mapWithKeys(function ($row) use ($normalizedTerm) {
+            $snippet = $this->optionalSnippet($row->text, $row->text_normalized, $normalizedTerm);
+            $textForLabel = $snippet !== '' ? $snippet : $row->text;
+            $label = QuranVerseLabel::formatForAdmin(
+                (int) $row->surah_number,
+                (int) $row->ayah_number,
+                $textForLabel,
+                self::MAX_LABEL_LENGTH
+            );
+            return [$row->verse_id => $label];
         })->toArray();
+
+        // Also search by surah name (EN/AR) so "Al-Imran" or "آل عمران" finds verses
+        $surahNumber = SurahHelper::findSurahNumberByName($term);
+        if ($surahNumber !== null) {
+            $bySurah = DB::connection(self::CONNECTION)
+                ->table('quran_verses')
+                ->where('surah_number', $surahNumber)
+                ->orderBy('surah_number')
+                ->orderBy('ayah_number')
+                ->limit($limit)
+                ->get();
+            foreach ($bySurah as $row) {
+                $id = $row->id;
+                if (!isset($byText[$id])) {
+                    $byText[$id] = QuranVerseLabel::formatForAdmin(
+                        (int) $row->surah_number,
+                        (int) $row->ayah_number,
+                        '',
+                        null
+                    );
+                }
+            }
+        }
+
+        return array_slice($byText, 0, $limit, true);
+    }
+
+    /**
+     * Optionally return a short snippet around the search match for context.
+     */
+    private function optionalSnippet(string $text, string $textNormalized, string $normalizedTerm): string
+    {
+        $pos = mb_stripos($textNormalized, $normalizedTerm);
+        if ($pos === false) {
+            return '';
+        }
+        return $this->extractSnippetAroundMatch($text, $pos, mb_strlen($normalizedTerm));
     }
 
     /**
      * Get labels for a list of verse IDs.
-     * 
+     * Label format: "(Arabic surah name: ayah_number) ayah Arabic text" for admin select/chips.
+     *
      * @param array<int> $ids Array of verse IDs
      * @return array<int, string> Array of [verse_id => label] pairs
      */
@@ -106,72 +147,38 @@ class QuranSearchService implements QuranSearchServiceInterface
             return [];
         }
 
-        $results = DB::connection(self::CONNECTION)
-            ->table('verse_texts')
-            ->join('quran_verses', 'verse_texts.verse_id', '=', 'quran_verses.id')
-            ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
-            ->join('languages', 'translations.language_id', '=', 'languages.id')
+        $verses = DB::connection(self::CONNECTION)
+            ->table('quran_verses')
             ->whereIn('quran_verses.id', $ids)
-            ->where('languages.code', 'ar') // Only Arabic text
             ->select([
                 'quran_verses.id as verse_id',
-                'quran_verses.ayah_key',
-                'verse_texts.text',
+                'quran_verses.surah_number',
+                'quran_verses.ayah_number',
             ])
             ->get();
 
-        return $results->mapWithKeys(function ($row) {
-            return [
-                $row->verse_id => $this->formatVerseLabel(
-                    $row->ayah_key,
-                    $row->text
-                ),
-            ];
+        // One query to load Arabic text per verse (first Arabic translation per verse)
+        $textsByVerse = DB::connection(self::CONNECTION)
+            ->table('verse_texts')
+            ->join('translations', 'verse_texts.translation_id', '=', 'translations.id')
+            ->join('languages', 'translations.language_id', '=', 'languages.id')
+            ->where('languages.code', 'ar')
+            ->whereIn('verse_texts.verse_id', $ids)
+            ->select('verse_texts.verse_id', 'verse_texts.text')
+            ->get()
+            ->groupBy('verse_id')
+            ->map(fn ($rows) => $rows->first()->text ?? '');
+
+        return $verses->mapWithKeys(function ($row) use ($textsByVerse) {
+            $text = $textsByVerse->get($row->verse_id, '');
+            $label = QuranVerseLabel::formatForAdmin(
+                (int) $row->surah_number,
+                (int) $row->ayah_number,
+                $text,
+                self::MAX_LABEL_LENGTH
+            );
+            return [$row->verse_id => $label];
         })->toArray();
-    }
-
-    /**
-     * Format a verse label for display (basic truncation).
-     * 
-     * @param string $ayahKey The verse reference (e.g., "2:255")
-     * @param string $text The Arabic verse text
-     * @return string The formatted label
-     */
-    private function formatVerseLabel(string $ayahKey, string $text): string
-    {
-        $truncatedText = Str::limit($text, self::MAX_LABEL_LENGTH, '…');
-        return "({$ayahKey}) {$truncatedText}";
-    }
-
-    /**
-     * Format a verse label with match highlighting (shows relevant snippet).
-     * 
-     * @param string $ayahKey The verse reference (e.g., "2:255")
-     * @param string $text The original Arabic verse text (with diacritics)
-     * @param string $textNormalized The normalized text (for finding match position)
-     * @param string $normalizedTerm The normalized search term
-     * @return string The formatted label with relevant snippet
-     */
-    private function formatVerseLabelWithMatch(
-        string $ayahKey, 
-        string $text, 
-        string $textNormalized,
-        string $normalizedTerm
-    ): string {
-        $prefix = "({$ayahKey}) ";
-        
-        // Find the position of the search term in the normalized text
-        $pos = mb_stripos($textNormalized, $normalizedTerm);
-        
-        if ($pos !== false) {
-            // Extract a snippet around the match from the ORIGINAL text
-            // The positions should roughly correspond between normalized and original
-            $snippet = $this->extractSnippetAroundMatch($text, $pos, mb_strlen($normalizedTerm));
-            return $prefix . $snippet;
-        }
-        
-        // Fallback: just truncate from start
-        return $prefix . Str::limit($text, self::MAX_LABEL_LENGTH, '…');
     }
 
     /**

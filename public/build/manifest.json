@@ -1,6 +1,6 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-B-uLOrqM.css",
+    "file": "assets/app-BuGDc5UE.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -8,10 +8,25 @@
       "app.css"
     ]
   },
+  "resources/css/tiptap-extensions.css": {
+    "file": "assets/tiptap-extensions-Bg2Yih71.css",
+    "src": "resources/css/tiptap-extensions.css",
+    "isEntry": true,
+    "name": "tiptap-extensions",
+    "names": [
+      "tiptap-extensions.css"
+    ]
+  },
   "resources/js/app.js": {
     "file": "assets/app-CAiCLEjY.js",
     "name": "app",
     "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/tiptap-extensions.js": {
+    "file": "assets/tiptap-extensions-BtPPP8Ii.js",
+    "name": "tiptap-extensions",
+    "src": "resources/js/tiptap-extensions.js",
     "isEntry": true
   }
 }

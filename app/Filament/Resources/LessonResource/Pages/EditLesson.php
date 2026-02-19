@@ -4,7 +4,6 @@ namespace App\Filament\Resources\LessonResource\Pages;
 
 use App\Domain\Lessons\Lesson;
 use App\Filament\Resources\LessonResource;
-use App\Services\Categories\CategoryValidationService;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -50,12 +49,6 @@ class EditLesson extends EditRecord
     
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        // Validate categories before saving
-        if (isset($data['categories']) && is_array($data['categories'])) {
-            $validationService = app(CategoryValidationService::class);
-            $validationService->validateCategoriesForScopeKey($data['categories'], 'lessons');
-        }
-
         // Store Quran Ayahs and Hadith Items for syncing
         $this->quranAyahIds = $data['quranAyahs'] ?? [];
         $this->hadithItemIds = $data['hadithItems'] ?? [];
@@ -77,7 +70,7 @@ class EditLesson extends EditRecord
                 if ($field !== 'customize_slug' && $field !== 'slug_disabled') {
                     $translationData[$langCode][$field] = $value;
                 }
-            } elseif (!in_array($key, ['quranAyahs', 'hadithItems', 'categories'])) {
+            } elseif (!in_array($key, ['quranAyahs', 'hadithItems'])) {
                 // Exclude relationship fields from base data
                 $baseData[$key] = $value;
             }
@@ -95,9 +88,13 @@ class EditLesson extends EditRecord
         if (!empty($this->translationData)) {
             foreach ($this->translationData as $langCode => $fields) {
                 if (!empty(array_filter($fields))) { // Only save if there's actual data
+                    $normalized = $fields;
+                    if (! array_key_exists('content', $normalized) || $normalized['content'] === null) {
+                        $normalized['content'] = '';
+                    }
                     $this->record->translations()->updateOrCreate(
                         ['language_code' => $langCode],
-                        $fields
+                        $normalized
                     );
                 }
             }
@@ -108,6 +105,12 @@ class EditLesson extends EditRecord
 
         // Sync Hadith Items manually (cross-database relationship)
         $this->syncHadithItems($this->hadithItemIds ?? []);
+
+        // Remove any lesson–category pivot rows (lessons no longer use categories)
+        \Illuminate\Support\Facades\DB::table('categorizables')
+            ->where('categorizable_type', get_class($this->record))
+            ->where('categorizable_id', $this->record->id)
+            ->delete();
     }
 
     private function syncQuranAyahs(array $ayahIds): void

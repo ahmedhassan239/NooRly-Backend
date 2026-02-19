@@ -1,0 +1,38 @@
+/**
+ * Callout blocks – use when rendering lesson/content HTML (e.g. WebView, iframe).
+ * Classes: .callout .callout-info | .callout-warning | .callout-success
+ */
+.callout {
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin: 10px 0;
+  border-left: 4px solid;
+}
+
+.callout-note {
+  background: #f5f5f5;
+  border-left-color: #9ca3af;
+}
+
+.callout-info {
+  background: #e8f1ff;
+  border-left-color: #2563eb;
+}
+
+.callout-success {
+  background: #e9f9ee;
+  border-left-color: #16a34a;
+}
+
+.callout-warning {
+  background: #fff7e6;
+  border-left-color: #ca8a04;
+}
+
+.callout-danger {
+  background: #ffecec;
+  border-left-color: #dc2626;
+}
+
+.callout p:first-child { margin-top: 0; }
+.callout p:last-child { margin-bottom: 0; }
