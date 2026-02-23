@@ -9,6 +9,7 @@ use App\Http\Resources\Api\V1\DuaResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Dua Controller
@@ -41,22 +42,25 @@ class DuaController extends Controller
             $query->where('is_featured', true);
         }
 
-        // Search
+        // Search (uses columns on duas table only; no dua_translations table required)
         if ($request->has('q') && $request->input('q')) {
             $searchTerm = $request->input('q');
             $query->where(function ($q) use ($searchTerm) {
-                // Search in translations
-                $q->whereHas('translations', function ($tq) use ($searchTerm) {
-                    $tq->where('name', 'like', "%{$searchTerm}%")
-                       ->orWhere('text', 'like', "%{$searchTerm}%");
-                });
+                $q->where('text_ar', 'like', "%{$searchTerm}%")
+                    ->orWhere('text_en', 'like', "%{$searchTerm}%")
+                    ->orWhere('dua_key', 'like', "%{$searchTerm}%")
+                    ->orWhere('transliteration', 'like', "%{$searchTerm}%");
+                if (Schema::hasColumn('duas', 'text_ar_normalized')) {
+                    $q->orWhere('text_ar_normalized', 'like', "%{$searchTerm}%");
+                }
             });
         }
 
         $perPage = min((int) $request->input('per_page', 15), 50);
-        $duas = $query->with(['translations', 'categories'])->paginate($perPage);
+        $duas = $query->with(['categories'])->paginate($perPage);
 
-        $locale = $request->header('Accept-Language', 'en');
+        $locale = $request->query('lang', $request->header('Accept-Language', 'en'));
+        $locale = strlen($locale) >= 2 ? substr($locale, 0, 2) : 'en';
 
         return response()->json([
             'status' => true,
@@ -80,11 +84,12 @@ class DuaController extends Controller
      */
     public function show(Request $request, int $id): JsonResponse
     {
-        $dua = Dua::with(['translations', 'categories', 'quranAyahs', 'hadithItems'])
+        $dua = Dua::with(['categories', 'quranAyahs', 'hadithItems'])
             ->where('is_active', true)
             ->findOrFail($id);
 
-        $locale = $request->header('Accept-Language', 'en');
+        $locale = $request->query('lang', $request->header('Accept-Language', 'en'));
+        $locale = strlen($locale) >= 2 ? substr($locale, 0, 2) : 'en';
 
         return response()->json([
             'status' => true,
@@ -122,6 +127,8 @@ class DuaController extends Controller
                 'slug' => $category->getSlug($locale),
                 'description' => $category->getDescription($locale),
                 'duas_count' => $duasCount,
+                'icon_key' => $category->icon_key,
+                'icon_color' => $category->icon_color,
             ];
         });
 
@@ -130,6 +137,20 @@ class DuaController extends Controller
             'message' => 'Dua categories retrieved successfully',
             'data' => $categories,
         ]);
+    }
+
+    /**
+     * List duas by category id
+     * 
+     * GET /duas/category/{category}
+     * @param Request $request
+     * @param int|string $category Category id
+     * @return JsonResponse
+     */
+    public function byCategory(Request $request, $category): JsonResponse
+    {
+        $request->merge(['category_id' => $category]);
+        return $this->index($request);
     }
 
     /**
@@ -145,25 +166,24 @@ class DuaController extends Controller
         ]);
 
         $searchTerm = $request->input('q');
-        $locale = $request->header('Accept-Language', 'en');
+        $locale = $request->query('lang', $request->header('Accept-Language', 'en'));
+        $locale = strlen($locale) >= 2 ? substr($locale, 0, 2) : 'en';
 
         $query = Dua::query()
-            ->where('is_active', true);
-
-        // Search in translations
-        $query->whereHas('translations', function ($tq) use ($searchTerm) {
-            $tq->where('name', 'like', "%{$searchTerm}%")
-               ->orWhere('text', 'like', "%{$searchTerm}%");
-        });
-
-        // Also search in normalized Arabic text if available
-        if ($this->isArabic($searchTerm)) {
-            $normalizedTerm = \App\Support\Arabic\ArabicTextNormalizer::normalize($searchTerm);
-            $query->orWhere('text_ar_normalized', 'like', "%{$normalizedTerm}%");
-        }
+            ->where('is_active', true)
+            ->where(function ($q) use ($searchTerm) {
+                $q->where('text_ar', 'like', "%{$searchTerm}%")
+                    ->orWhere('text_en', 'like', "%{$searchTerm}%")
+                    ->orWhere('dua_key', 'like', "%{$searchTerm}%")
+                    ->orWhere('transliteration', 'like', "%{$searchTerm}%");
+                if (Schema::hasColumn('duas', 'text_ar_normalized')) {
+                    $normalizedTerm = \App\Support\Arabic\ArabicTextNormalizer::normalize($searchTerm);
+                    $q->orWhere('text_ar_normalized', 'like', "%{$normalizedTerm}%");
+                }
+            });
 
         $perPage = min((int) $request->input('per_page', 15), 50);
-        $duas = $query->with('translations')->paginate($perPage);
+        $duas = $query->with('categories')->paginate($perPage);
 
         return response()->json([
             'status' => true,
@@ -181,14 +201,20 @@ class DuaController extends Controller
 
     /**
      * Format dua for list response
+     * Includes arabic_text, translation for Flutter ContentModel compatibility.
      */
     private function formatDua(Dua $dua, string $locale): array
     {
+        $textAr = $dua->getTranslation('text', 'ar');
+        $textLocale = $dua->getTranslation('text', $locale);
         return [
             'id' => $dua->id,
             'name' => $dua->getTranslation('name', $locale),
-            'text' => $dua->getTranslation('text', $locale),
-            'text_ar' => $dua->getTranslation('text', 'ar'),
+            'title' => $dua->getTranslation('name', $locale),
+            'text' => $textLocale,
+            'text_ar' => $textAr,
+            'arabic_text' => $textAr,
+            'translation' => $textLocale,
             'transliteration' => $dua->transliteration,
             'source' => $dua->source,
             'is_featured' => $dua->is_featured,

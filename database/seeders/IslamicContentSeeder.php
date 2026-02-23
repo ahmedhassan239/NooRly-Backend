@@ -6,7 +6,6 @@ use App\Domain\Duas\Dua;
 use App\Domain\Faq\Faq;
 use App\Domain\Faq\FaqCategory;
 use App\Domain\Lessons\Lesson;
-use App\Domain\Tasks\DailyTask;
 use Illuminate\Database\Seeder;
 
 class IslamicContentSeeder extends Seeder
@@ -14,7 +13,7 @@ class IslamicContentSeeder extends Seeder
     public function run(): void
     {
         $this->seedLessons();
-        $this->seedDailyTasks();
+        // Daily tasks are seeded by DailyTaskSeeder (with translations)
         $this->seedDuas();
         $this->seedFaqs();
     }
@@ -59,30 +58,6 @@ class IslamicContentSeeder extends Seeder
 
         foreach ($lessons as $lesson) {
             Lesson::firstOrCreate(['title' => $lesson['title']], $lesson);
-        }
-    }
-
-    private function seedDailyTasks()
-    {
-        $tasks = [
-            // Day 1
-            ['day_number' => 1, 'title' => 'Say the Shahada with conviction', 'type' => 'action', 'points' => 10],
-            ['day_number' => 1, 'title' => 'Listen to Surah Al-Fatiha', 'type' => 'listen', 'points' => 10],
-            ['day_number' => 1, 'title' => 'Make a sincere Dua for guidance', 'type' => 'prayer', 'points' => 10],
-
-            // Day 2
-            ['day_number' => 2, 'title' => 'Say "SubhanAllah" 33 times', 'type' => 'dhikr', 'points' => 5],
-            ['day_number' => 2, 'title' => 'Reflect on 3 blessings', 'type' => 'action', 'points' => 10],
-
-            // Day 3
-            ['day_number' => 3, 'title' => 'Practice the steps of Wudu', 'type' => 'action', 'points' => 20],
-        ];
-
-        foreach ($tasks as $task) {
-            DailyTask::firstOrCreate([
-                'day_number' => $task['day_number'],
-                'title' => $task['title'],
-            ], $task);
         }
     }
 

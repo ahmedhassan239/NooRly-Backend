@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             LanguageSeeder::class,
             IslamicContentSeeder::class,
+            DailyTaskSeeder::class,
             AppUserSeeder::class,
             UserProgressSeeder::class,
             QuranSeeder::class,

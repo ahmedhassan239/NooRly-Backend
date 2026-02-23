@@ -24,5 +24,8 @@ class AppServiceProvider extends ServiceProvider
         
         // Observer for auto-normalizing Arabic text in verse_texts
         \App\Domain\QuranAllLang\Models\VerseText::observe(\App\Observers\VerseTextObserver::class);
+
+        // Clear content scopes cache when scopes are created/updated/deleted
+        \App\Domain\ContentScopes\ContentScope::observe(\App\Observers\ContentScopeObserver::class);
     }
 }

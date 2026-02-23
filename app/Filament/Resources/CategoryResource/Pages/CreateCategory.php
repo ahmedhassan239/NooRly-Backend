@@ -24,9 +24,11 @@ class CreateCategory extends CreateRecord
         // Extract translation data
         $this->translationData = $this->extractTranslationData($data);
         
-        // Return base model data (scope_id is fillable)
+        // Return base model data (scope_id, icon_key, icon_color are fillable)
         return [
             'scope_id' => $data['scope_id'] ?? null,
+            'icon_key' => $data['icon_key'] ?? null,
+            'icon_color' => $data['icon_color'] ?? null,
         ];
     }
 

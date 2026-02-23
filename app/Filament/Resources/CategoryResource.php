@@ -83,6 +83,25 @@ class CategoryResource extends Resource
                             }),
                     ]),
 
+                // Icon (for app display: Library Duas/Hadith/Verses/Adhkar category cards)
+                Forms\Components\Section::make('Icon')
+                    ->description('Icon shown on category cards in the app (e.g. Library > Duas).')
+                    ->schema([
+                        Forms\Components\Select::make('icon_key')
+                            ->label('Icon')
+                            ->options(self::getCategoryIconOptions())
+                            ->searchable()
+                            ->placeholder('None (default icon)')
+                            ->helperText('Lucide/Material style key (e.g. moon, book, bed).'),
+                        Forms\Components\ColorPicker::make('icon_color')
+                            ->label('Icon color (optional)')
+                            ->hex()
+                            ->nullable()
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->helperText('Click the preview circle to open the palette. Saved as HEX (e.g. #F59E0B). Leave empty for default.'),
+                    ])
+                    ->columns(2),
+
                 // Translatable fields in tabs
                 static::getTranslationTabs(function ($langCode, $isRequired) {
                     $isRtl = in_array($langCode, ['ar', 'fa', 'ur', 'he']);
@@ -136,6 +155,32 @@ class CategoryResource extends Resource
                     ];
                 }),
             ]);
+    }
+
+    /**
+     * Predefined icon keys for category cards (Lucide/Material names).
+     */
+    public static function getCategoryIconOptions(): array
+    {
+        return [
+            'bookmark' => 'Bookmark',
+            'moon' => 'Moon',
+            'sun' => 'Sun',
+            'book' => 'Book',
+            'book-open' => 'Book Open',
+            'bed' => 'Bed',
+            'utensils' => 'Utensils',
+            'car' => 'Car',
+            'shield' => 'Shield',
+            'heart' => 'Heart',
+            'star' => 'Star',
+            'home' => 'Home',
+            'mosque' => 'Mosque (if available)',
+            'hand' => 'Hand',
+            'sparkles' => 'Sparkles',
+            'compass' => 'Compass',
+            'clock' => 'Clock',
+        ];
     }
 
     /**

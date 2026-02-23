@@ -28,12 +28,18 @@ class ContentScope extends Model
     protected $fillable = [
         'key',
         'label',
+        'icon_key',
+        'icon_color',
         'model_class',
         'is_active',
+        'show_in_library_tabs',
+        'display_order',
+        'feature_flag',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'show_in_library_tabs' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

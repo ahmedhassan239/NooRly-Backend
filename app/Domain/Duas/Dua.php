@@ -84,41 +84,28 @@ class Dua extends Model
 
     /**
      * Get a translated attribute value.
-     * Falls back to direct column if no translation exists.
-     * 
+     * Uses direct columns on duas table only (text_ar, text_en, dua_key).
+     * Does NOT query dua_translations table so API works when that table is absent.
+     *
      * @param string $attribute Attribute name (name, text)
      * @param string|null $locale Language code
-     * @return string|null
+     * @return string
      */
-    public function getTranslation(string $attribute, ?string $locale = null): ?string
+    public function getTranslation(string $attribute, ?string $locale = null): string
     {
         $locale = $locale ?? app()->getLocale();
-        
-        // Try to get from translations table
-        if ($this->relationLoaded('translations')) {
-            $translation = $this->translations->firstWhere('language_code', $locale);
-            if ($translation) {
-                // Map attribute names
-                $columnMap = [
-                    'name' => 'title',
-                    'text' => 'translation_text',
-                ];
-                $column = $columnMap[$attribute] ?? $attribute;
-                if (!empty($translation->{$column})) {
-                    return $translation->{$column};
-                }
-            }
-        }
-        
-        // Fall back to direct columns
+
         if ($attribute === 'name') {
-            return $this->dua_key; // Use key as name fallback
+            return $this->dua_key ?? '';
         }
-        
+
         if ($attribute === 'text') {
-            return $locale === 'ar' ? $this->text_ar : ($this->text_en ?? $this->text_ar);
+            $value = $locale === 'ar'
+                ? ($this->text_ar ?? $this->text_en ?? '')
+                : ($this->text_en ?? $this->text_ar ?? '');
+            return $value ?? '';
         }
-        
-        return null;
+
+        return '';
     }
 }

@@ -4,11 +4,14 @@ use App\Http\Controllers\Api\V1\AdhkarController;
 use App\Http\Controllers\Api\V1\AppConfigController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\ContentScopeController;
 use App\Http\Controllers\Api\V1\DuaController;
 use App\Http\Controllers\Api\V1\EventController;
 use App\Http\Controllers\Api\V1\JourneyController;
 use App\Http\Controllers\Api\V1\HadithController;
 use App\Http\Controllers\Api\V1\HomeController;
+use App\Http\Controllers\Api\V1\LibraryHadithController;
+use App\Http\Controllers\Api\V1\LibraryVersesController;
 use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\OnboardingController;
 use App\Http\Controllers\Api\V1\PrayerTimeController;
@@ -27,6 +30,7 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/health', [SystemController::class, 'health']);
+    Route::get('/health/tables', [SystemController::class, 'tables']);
     Route::post('/events', [EventController::class, 'store']);
     
     // App Configuration (Remote Config)
@@ -79,6 +83,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('duas')->group(function () {
         Route::get('/', [DuaController::class, 'index']);
         Route::get('/categories', [DuaController::class, 'categories']);
+        Route::get('/category/{category}', [DuaController::class, 'byCategory']);
         Route::get('/search', [DuaController::class, 'search']);
         Route::get('/{id}', [DuaController::class, 'show']);
     });
@@ -97,12 +102,43 @@ Route::prefix('v1')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Content Scopes (Public) - Library tabs etc.
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/content-scopes', [ContentScopeController::class, 'index']);
+
+    /*
+    |--------------------------------------------------------------------------
     | Categories (Public)
     |--------------------------------------------------------------------------
     */
     Route::prefix('categories')->group(function () {
         Route::get('/', [CategoryController::class, 'index']);
         Route::get('/{id}', [CategoryController::class, 'show']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Library Hadith (categories → collections → hadiths)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('library/hadith')->group(function () {
+        Route::get('/categories', [LibraryHadithController::class, 'categories']);
+        Route::get('/categories/{id}/collections', [LibraryHadithController::class, 'collectionsByCategory']);
+        Route::get('/collections', [LibraryHadithController::class, 'collections']);
+        Route::get('/collections/{id}', [LibraryHadithController::class, 'collection']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Library Verses (categories → collections → verses)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('library/verses')->group(function () {
+        Route::get('/categories', [LibraryVersesController::class, 'categories']);
+        Route::get('/categories/{id}/collections', [LibraryVersesController::class, 'collectionsByCategory']);
+        Route::get('/collections', [LibraryVersesController::class, 'collections']);
+        Route::get('/collections/{id}', [LibraryVersesController::class, 'collection']);
     });
 
     /*

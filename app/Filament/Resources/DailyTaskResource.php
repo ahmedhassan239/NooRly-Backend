@@ -12,7 +12,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
+use FilamentTiptapEditor\TiptapEditor;
 
 class DailyTaskResource extends Resource
 {
@@ -76,13 +76,14 @@ class DailyTaskResource extends Resource
                             ->required($isRequired)
                             ->maxLength(255)
                             ->columnSpanFull(),
-                        
-                        TinyEditor::make("{$langCode}_description")
+
+                        TiptapEditor::make("{$langCode}_description")
                             ->label('Description')
+                            ->required($isRequired)
                             ->columnSpanFull()
-                            ->fileAttachmentsDisk('public')
-                            ->fileAttachmentsDirectory('tasks/images')
-                            ->profile('simple'),
+                            ->profile('default')
+                            ->disk('public')
+                            ->directory('daily-tasks/images'),
                     ];
                 }),
             ]);
@@ -100,7 +101,15 @@ class DailyTaskResource extends Resource
                     ->label('Title (EN)')
                     ->searchable()
                     ->getStateUsing(function ($record) {
-                        return $record->translations()->where('language_code', 'en')->first()?->title ?? 'N/A';
+                        $en = $record->translations->firstWhere('language_code', 'en');
+                        if ($en?->title) {
+                            return $en->title;
+                        }
+                        $fallback = $record->translations->first();
+                        if ($fallback?->title) {
+                            return $fallback->title;
+                        }
+                        return $record->title ?? 'N/A';
                     }),
                 Tables\Columns\TextColumn::make('type')
                     ->badge()

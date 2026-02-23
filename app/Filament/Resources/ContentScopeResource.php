@@ -39,7 +39,7 @@ class ContentScopeResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255)
-                            ->helperText('Unique identifier (e.g., "lessons", "duas"). Must be slug-like.')
+                            ->helperText('Unique identifier (e.g., hadith, verses, lessons). Lowercase letters, numbers and underscores only.')
                             ->rules([
                                 'regex:/^[a-z0-9_]+$/',
                             ])
@@ -48,8 +48,13 @@ class ContentScopeResource extends Resource
                                 if (empty($state)) {
                                     return;
                                 }
+                                // Normalize to slug format (lowercase, spaces to underscores)
+                                $normalized = strtolower(Str::slug($state, '_'));
+                                if ($normalized !== $state) {
+                                    $set('key', $normalized);
+                                }
                                 // Auto-generate label from key if label is empty
-                                $set('label', Str::title(str_replace('_', ' ', $state)));
+                                $set('label', Str::title(str_replace('_', ' ', $normalized)));
                             }),
                         
                         Forms\Components\TextInput::make('label')
@@ -61,11 +66,12 @@ class ContentScopeResource extends Resource
                         Forms\Components\TextInput::make('model_class')
                             ->label('Model Class')
                             ->maxLength(255)
-                            ->helperText('Full model class name (e.g., "App\\Domain\\Lessons\\Lesson")')
-                            ->placeholder('App\\Domain\\Lessons\\Lesson')
+                            ->helperText('Optional. Leave empty for Library-only scopes (e.g. Hadith, Verses). Otherwise use full class name (e.g. App\\Domain\\Lessons\\Lesson).')
+                            ->placeholder('Leave empty or e.g. App\\Domain\\Lessons\\Lesson')
                             ->rules([
                                 function () {
                                     return function (string $attribute, $value, \Closure $fail) {
+                                        $value = is_string($value) ? trim($value) : $value;
                                         if (!empty($value) && !class_exists($value)) {
                                             $fail('The model class does not exist.');
                                         }
@@ -76,7 +82,41 @@ class ContentScopeResource extends Resource
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active')
                             ->default(true)
-                            ->helperText('Only active scopes appear in category selection'),
+                            ->helperText('Globally enable or disable this scope in the app and API'),
+                        Forms\Components\Toggle::make('show_in_library_tabs')
+                            ->label('Show in Library Tabs')
+                            ->default(true)
+                            ->helperText('When on, this scope appears as a tab in the Library (only if also Active).'),
+                        Forms\Components\TextInput::make('display_order')
+                            ->label('Display Order')
+                            ->numeric()
+                            ->default(0)
+                            ->minValue(0)
+                            ->helperText('Tab order in Library (you can also reorder by drag on the list).'),
+                        Forms\Components\TextInput::make('feature_flag')
+                            ->label('Feature flag')
+                            ->maxLength(64)
+                            ->placeholder('e.g. adhkar')
+                            ->helperText('Optional. If set, scope is only shown when config("features.{key}") is true.'),
+                    ])
+                    ->columns(2),
+
+                // Icon and color (app display: Library tabs)
+                Forms\Components\Section::make('App display')
+                    ->description('Icon and color shown in the app (e.g. Library tabs).')
+                    ->schema([
+                        Forms\Components\Select::make('icon_key')
+                            ->label('Icon')
+                            ->options(self::getScopeIconOptions())
+                            ->searchable()
+                            ->placeholder('None (default icon)')
+                            ->helperText('Icon key (e.g. book, moon, heart, bookmark).'),
+                        Forms\Components\ColorPicker::make('icon_color')
+                            ->label('Color')
+                            ->hex()
+                            ->nullable()
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->helperText('HEX (e.g. #8B5CF6). Leave empty for theme default.'),
                     ])
                     ->columns(2),
             ]);
@@ -86,51 +126,55 @@ class ContentScopeResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('id')
-                    ->label('ID')
-                    ->sortable(),
-                
+                Tables\Columns\TextColumn::make('display_order')
+                    ->label('#')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
                 Tables\Columns\TextColumn::make('key')
                     ->label('Key')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
-                
                 Tables\Columns\TextColumn::make('label')
                     ->label('Label')
                     ->searchable()
                     ->sortable(),
-                
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Active')
+                    ->boolean()
+                    ->sortable(),
+                Tables\Columns\IconColumn::make('show_in_library_tabs')
+                    ->label('Show in Tabs')
+                    ->boolean()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('model_class')
                     ->label('Model Class')
                     ->searchable()
                     ->limit(50)
                     ->tooltip(fn ($record) => $record->model_class)
-                    ->color('gray'),
-                
-                Tables\Columns\IconColumn::make('is_active')
-                    ->label('Active')
-                    ->boolean()
-                    ->sortable(),
-                
+                    ->color('gray')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('feature_flag')
+                    ->label('Feature flag')
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('categories_count')
                     ->label('Categories')
                     ->counts('categories')
                     ->badge()
                     ->color('success'),
-                
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created')
                     ->dateTime('M j, Y')
                     ->sortable()
-                    ->toggleable(),
-                
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Updated')
                     ->dateTime('M j, Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->reorderable('display_order')
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active')
@@ -147,7 +191,34 @@ class ContentScopeResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('display_order', 'asc');
+    }
+
+    /**
+     * Icon options for Library tab display (Lucide-style keys).
+     */
+    public static function getScopeIconOptions(): array
+    {
+        return [
+            'book-open' => 'Book Open',
+            'book-marked' => 'Book Marked',
+            'book' => 'Book',
+            'bookmark' => 'Bookmark',
+            'clipboard-list' => 'Clipboard List',
+            'quote' => 'Quote',
+            'repeat' => 'Repeat',
+            'scroll' => 'Scroll',
+            'moon' => 'Moon',
+            'sun' => 'Sun',
+            'sparkles' => 'Sparkles',
+            'heart' => 'Heart',
+            'star' => 'Star',
+            'home' => 'Home',
+            'compass' => 'Compass',
+            'clock' => 'Clock',
+            'pray' => 'Pray',
+            'dhikr' => 'Dhikr',
+        ];
     }
 
     public static function getRelations(): array

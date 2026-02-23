@@ -34,6 +34,8 @@ class Category extends Model
 
     protected $fillable = [
         'scope_id',
+        'icon_key',
+        'icon_color',
     ];
 
     protected $casts = [
@@ -305,6 +307,14 @@ class Category extends Model
     // =========================================================================
     // Query Scopes
     // =========================================================================
+
+    /**
+     * Scope to filter by content scope id.
+     */
+    public function scopeByScope(Builder $query, int $scopeId): Builder
+    {
+        return $query->where('scope_id', $scopeId);
+    }
 
     /**
      * Scope to search by translated name.

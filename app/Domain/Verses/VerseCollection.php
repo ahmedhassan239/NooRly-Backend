@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Domain\Hadith;
+namespace App\Domain\Verses;
 
 use App\Domain\Categories\Models\Category;
 use Illuminate\Database\Eloquent\Model;
@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
-class HadithCollection extends Model
+class VerseCollection extends Model
 {
-    protected $table = 'library_hadith_collections';
+    protected $table = 'verse_collections';
 
     protected $fillable = [
         'title',
@@ -31,7 +31,7 @@ class HadithCollection extends Model
      */
     public function translations(): HasMany
     {
-        return $this->hasMany(HadithCollectionTranslation::class, 'hadith_collection_id');
+        return $this->hasMany(VerseCollectionTranslation::class, 'verse_collection_id');
     }
 
     /**
@@ -98,44 +98,44 @@ class HadithCollection extends Model
     }
 
     /**
-     * Categories this collection is attached to (for Library by category).
+     * Categories this collection is attached to.
      */
     public function categories(): BelongsToMany
     {
-        return $this->belongsToMany(Category::class, 'category_lib_hadith_collection')
+        return $this->belongsToMany(Category::class, 'category_verse_coll')
             ->withTimestamps();
     }
 
     /**
-     * Hadith item IDs in this collection (stored in main DB pivot; hadiths live in external DB).
+     * Quran ayah IDs in this collection (external DB).
      */
-    public function getHadithItemIds(): array
+    public function getQuranAyahIds(): array
     {
-        return DB::table('lib_hadith_collection_item')
-            ->where('hadith_collection_id', $this->id)
+        return DB::table('verse_collection_ayah')
+            ->where('verse_collection_id', $this->id)
             ->orderBy('display_order')
             ->orderBy('id')
-            ->pluck('hadith_item_id')
+            ->pluck('quran_ayah_id')
             ->toArray();
     }
 
     /**
-     * Sync hadith item IDs and display order.
+     * Sync Quran ayah IDs and display order.
      */
-    public function syncHadithItems(array $items): void
+    public function syncQuranAyahs(array $items): void
     {
-        DB::table('lib_hadith_collection_item')
-            ->where('hadith_collection_id', $this->id)
+        DB::table('verse_collection_ayah')
+            ->where('verse_collection_id', $this->id)
             ->delete();
 
         foreach ($items as $order => $item) {
-            $hadithItemId = is_array($item) ? ($item['hadith_item_id'] ?? $item['id'] ?? null) : $item;
-            if ($hadithItemId === null) {
+            $ayahId = is_array($item) ? ($item['quran_ayah_id'] ?? $item['id'] ?? null) : $item;
+            if ($ayahId === null) {
                 continue;
             }
-            DB::table('lib_hadith_collection_item')->insert([
-                'hadith_collection_id' => $this->id,
-                'hadith_item_id' => $hadithItemId,
+            DB::table('verse_collection_ayah')->insert([
+                'verse_collection_id' => $this->id,
+                'quran_ayah_id' => $ayahId,
                 'display_order' => is_array($item) ? ($item['display_order'] ?? $order) : $order,
                 'created_at' => now(),
                 'updated_at' => now(),

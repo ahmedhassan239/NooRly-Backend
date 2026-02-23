@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Domain\Duas\Dua;
-use App\Filament\Concerns\HasQuranHadithSelects;
 use App\Filament\Concerns\HasScopeFilteredCategories;
 use App\Filament\Resources\DuaResource\Pages;
 use Filament\Forms;
@@ -11,11 +10,10 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use FilamentTiptapEditor\TiptapEditor;
 
 class DuaResource extends Resource
 {
-    use HasScopeFilteredCategories, HasQuranHadithSelects;
+    use HasScopeFilteredCategories;
 
     
     protected static ?string $model = Dua::class;
@@ -51,25 +49,15 @@ class DuaResource extends Resource
                         static::getCategorySelectField('duas'),
                     ]),
 
-                Forms\Components\Section::make('Quran Ayahs (Ayat)')
-                    ->schema([
-                        static::getQuranAyahsSelectField(),
-                    ]),
-
-                Forms\Components\Section::make('Hadith Items')
-                    ->schema([
-                        static::getHadithItemsSelectField(),
-                    ]),
-
                 Forms\Components\Tabs::make('Translations')
                     ->tabs([
                         Forms\Components\Tabs\Tab::make('English')
                             ->schema([
-                                TiptapEditor::make('text_en')
+                                Forms\Components\Textarea::make('text_en')
                                     ->label('English Text')
                                     ->nullable()
-                                    ->columnSpanFull()
-                                    ->profile('default'),
+                                    ->rows(5)
+                                    ->columnSpanFull(),
                                 
                                 Forms\Components\Textarea::make('transliteration')
                                     ->label('Transliteration')
@@ -79,11 +67,11 @@ class DuaResource extends Resource
                         
                         Forms\Components\Tabs\Tab::make('Arabic')
                             ->schema([
-                                TiptapEditor::make('text_ar')
+                                Forms\Components\Textarea::make('text_ar')
                                     ->label('Arabic Text')
                                     ->required()
+                                    ->rows(5)
                                     ->columnSpanFull()
-                                    ->profile('default')
                                     ->extraInputAttributes(['dir' => 'rtl']),
                             ]),
                     ])->columnSpanFull(),

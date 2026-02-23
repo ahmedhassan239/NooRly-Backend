@@ -10,6 +10,11 @@ class ListDailyTasks extends ListRecords
 {
     protected static string $resource = DailyTaskResource::class;
 
+    protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getTableQuery()->with('translations');
+    }
+
     protected function getHeaderActions(): array
     {
         return [

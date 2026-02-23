@@ -31,9 +31,11 @@ class EditCategory extends EditRecord
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        // Load scope_id
+        // Load scope_id and icon fields
         $data['scope_id'] = $this->record->scope_id;
-        
+        $data['icon_key'] = $this->record->icon_key;
+        $data['icon_color'] = $this->record->icon_color;
+
         // Load translations into form fields
         foreach ($this->record->translations as $translation) {
             $prefix = $translation->language_code . '_';
@@ -54,9 +56,11 @@ class EditCategory extends EditRecord
         // Extract translation data
         $this->translationData = $this->extractTranslationData($data);
         
-        // Return base model data (scope_id is fillable)
+        // Return base model data (scope_id, icon_key, icon_color are fillable)
         return [
             'scope_id' => $data['scope_id'] ?? null,
+            'icon_key' => $data['icon_key'] ?? null,
+            'icon_color' => $data['icon_color'] ?? null,
         ];
     }
 
