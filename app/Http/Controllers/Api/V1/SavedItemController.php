@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Adhkar\Adhkar;
 use App\Domain\QuranAllLang\Helpers\SurahHelper;
 use App\Domain\QuranAllLang\Models\QuranVerse;
 use App\Http\Controllers\Controller;
@@ -39,6 +40,9 @@ class SavedItemController extends Controller
         }
         if ($type === 'verse') {
             return $this->savedVersesIndex($request);
+        }
+        if ($type === 'adhkar') {
+            return $this->savedAdhkarIndex($request);
         }
 
         $user = $request->user();
@@ -310,6 +314,69 @@ class SavedItemController extends Controller
                 'text' => $locale === 'ar' ? $textAr : $textEn,
                 'is_saved' => true,
             ];
+        }
+
+        return $this->successResponse([
+            'items' => $items,
+            'total' => $total,
+        ], null, 200, [
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'has_more' => $offset + $savedRows->count() < $total,
+        ]);
+    }
+
+    /**
+     * GET /saved?type=adhkar — hydrated saved adhkar (latest first, paginated).
+     */
+    private function savedAdhkarIndex(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $perPage = (int) $request->query('per_page', 20);
+        $perPage = $perPage < 1 ? 20 : min($perPage, 100);
+
+        $savedQuery = $user->savedItems()
+            ->where('item_type', 'adhkar')
+            ->orderByDesc('created_at');
+
+        $total = $savedQuery->count();
+        $page = max(1, (int) $request->query('page', 1));
+        $offset = ($page - 1) * $perPage;
+
+        $savedRows = $savedQuery->offset($offset)->limit($perPage)->get(['id', 'item_id', 'created_at']);
+
+        $adhkarIds = $savedRows->pluck('item_id')->map(function ($id) {
+            return is_numeric($id) ? (int) $id : $id;
+        })->all();
+
+        if (count($adhkarIds) === 0) {
+            return $this->successResponse([
+                'items' => [],
+                'total' => $total,
+            ], null, 200, [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'has_more' => false,
+            ]);
+        }
+
+        $locale = $this->getPreferredLocale($request);
+
+        $adhkarModels = Adhkar::active()
+            ->with('category')
+            ->whereIn('id', $adhkarIds)
+            ->get()
+            ->keyBy('id');
+
+        $items = [];
+        foreach ($adhkarIds as $aid) {
+            $adhkar = $adhkarModels->get($aid);
+            if (!$adhkar) {
+                continue;
+            }
+            $items[] = array_merge($adhkar->toApiArray($locale), ['is_saved' => true]);
         }
 
         return $this->successResponse([

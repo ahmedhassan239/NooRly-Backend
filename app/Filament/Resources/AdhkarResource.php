@@ -4,11 +4,13 @@ namespace App\Filament\Resources;
 
 use App\Domain\Adhkar\Adhkar;
 use App\Domain\Categories\Models\Category;
+use App\Domain\ContentScopes\ContentScope;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class AdhkarResource extends Resource
 {
@@ -26,6 +28,23 @@ class AdhkarResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Adhkar';
 
+    /** Scope key for this resource; used to filter categories. */
+    protected static string $scopeKey = 'adhkar';
+
+    /**
+     * Get categories for this resource's scope (for dropdown options).
+     */
+    public static function getCategoriesForScope(): \Illuminate\Support\Collection
+    {
+        $scope = ContentScope::where('key', static::$scopeKey)->first();
+        if (!$scope) {
+            return collect();
+        }
+        return Category::byScope($scope->id)
+            ->with('translations')
+            ->get();
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -36,9 +55,6 @@ class AdhkarResource extends Resource
                             ->tabs([
                                 Forms\Components\Tabs\Tab::make('English')
                                     ->schema([
-                                        Forms\Components\TextInput::make('title.en')
-                                            ->label('Title (English)')
-                                            ->required(),
                                         Forms\Components\Textarea::make('text.en')
                                             ->label('Text (English)')
                                             ->rows(4),
@@ -48,9 +64,6 @@ class AdhkarResource extends Resource
                                     ]),
                                 Forms\Components\Tabs\Tab::make('Arabic')
                                     ->schema([
-                                        Forms\Components\TextInput::make('title.ar')
-                                            ->label('Title (Arabic)')
-                                            ->extraAttributes(['dir' => 'rtl']),
                                         Forms\Components\Textarea::make('text.ar')
                                             ->label('Text (Arabic)')
                                             ->rows(4)
@@ -66,33 +79,18 @@ class AdhkarResource extends Resource
 
                 Forms\Components\Section::make('Classification')
                     ->schema([
-                        Forms\Components\Select::make('category_key')
-                            ->label('Category')
-                            ->options([
-                                'morning' => 'Morning Adhkar',
-                                'evening' => 'Evening Adhkar',
-                                'sleep' => 'Before Sleep',
-                                'wakeup' => 'After Waking Up',
-                                'prayer' => 'After Prayer',
-                                'general' => 'General',
-                                'travel' => 'Travel',
-                                'food' => 'Food & Drink',
-                                'protection' => 'Protection',
-                            ])
-                            ->searchable()
-                            ->required(),
-
                         Forms\Components\Select::make('category_id')
-                            ->label('Content Category')
+                            ->label('Category')
                             ->options(function () {
-                                return Category::with('translations')->get()
+                                return static::getCategoriesForScope()
                                     ->mapWithKeys(fn ($cat) => [
                                         $cat->id => (string) ($cat->getName() ?? "Category #{$cat->id}"),
                                     ])
                                     ->all();
                             })
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->required(),
 
                         Forms\Components\TextInput::make('count')
                             ->label('Repeat Count')
@@ -106,14 +104,6 @@ class AdhkarResource extends Resource
                             ->placeholder('e.g., Sahih Bukhari, Sahih Muslim')
                             ->maxLength(255),
                     ])->columns(2),
-
-                Forms\Components\Section::make('Media')
-                    ->schema([
-                        Forms\Components\TextInput::make('audio_url')
-                            ->label('Audio URL')
-                            ->url()
-                            ->placeholder('https://example.com/audio.mp3'),
-                    ]),
 
                 Forms\Components\Section::make('Display Settings')
                     ->schema([
@@ -142,27 +132,20 @@ class AdhkarResource extends Resource
                     ->label('#')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('title.en')
-                    ->label('Title')
-                    ->searchable()
-                    ->limit(30),
-
                 Tables\Columns\TextColumn::make('text.ar')
-                    ->label('Arabic Text')
-                    ->limit(50)
+                    ->label('Text (Arabic)')
+                    ->searchable()
+                    ->limit(40)
                     ->extraAttributes(['dir' => 'rtl']),
 
-                Tables\Columns\TextColumn::make('category_key')
+                Tables\Columns\TextColumn::make('text.en')
+                    ->label('Text (English)')
+                    ->limit(40),
+
+                Tables\Columns\TextColumn::make('category_id')
                     ->label('Category')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'morning' => 'warning',
-                        'evening' => 'info',
-                        'sleep' => 'gray',
-                        'wakeup' => 'success',
-                        'prayer' => 'primary',
-                        default => 'gray',
-                    }),
+                    ->formatStateUsing(fn ($record) => $record->category?->getName() ?? '—')
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('count')
                     ->label('Count')
@@ -178,16 +161,10 @@ class AdhkarResource extends Resource
                     ->boolean(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('category_key')
+                Tables\Filters\SelectFilter::make('category_id')
                     ->label('Category')
-                    ->options([
-                        'morning' => 'Morning Adhkar',
-                        'evening' => 'Evening Adhkar',
-                        'sleep' => 'Before Sleep',
-                        'wakeup' => 'After Waking Up',
-                        'prayer' => 'After Prayer',
-                        'general' => 'General',
-                    ]),
+                    ->relationship('category', 'id', modifyQueryUsing: fn ($query) => $query->whereHas('scope', fn ($q) => $q->where('key', static::$scopeKey)))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->getName() ?? "Category #{$record->id}"),
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active'),
@@ -205,6 +182,11 @@ class AdhkarResource extends Resource
             ])
             ->defaultSort('position')
             ->reorderable('position');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with('category');
     }
 
     public static function getPages(): array

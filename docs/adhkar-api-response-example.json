@@ -1,0 +1,16 @@
+{
+  "id": 1,
+  "type": "adhkar",
+  "repeat_count": 3,
+  "source": "Sahih Bukhari",
+  "content": {
+    "text": {
+      "ar": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ",
+      "en": "Glory and praise be to Allah"
+    },
+    "reward": {
+      "ar": "حَسَنَاتٌ كَثِيرَةٌ",
+      "en": "Many good deeds"
+    }
+  }
+}

@@ -3,22 +3,26 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Adhkar\Adhkar;
+use App\Domain\ContentScopes\ContentScope;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Adhkar\StoreAdhkarRequest;
+use App\Http\Resources\Api\V1\AdhkarResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Adhkar Controller
- * 
+ *
  * Provides API endpoints for adhkar (remembrances).
+ * GET /adhkar?category_id={id} returns items with is_saved for the current user when authenticated.
  */
 class AdhkarController extends Controller
 {
+    private const SCOPE_KEY = 'adhkar';
+
     /**
-     * List adhkar with pagination and filtering
-     * 
-     * @param Request $request
-     * @return JsonResponse
+     * List adhkar with pagination and filtering.
+     * GET /api/v1/adhkar?category_id={id} — list by category (category must belong to scope adhkar).
      */
     public function index(Request $request): JsonResponse
     {
@@ -26,25 +30,39 @@ class AdhkarController extends Controller
             ->active()
             ->ordered();
 
-        // Filter by category key
+        if ($request->has('category_id')) {
+            $categoryId = (int) $request->input('category_id');
+            $scope = ContentScope::where('key', self::SCOPE_KEY)->first();
+            if (!$scope) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Scope adhkar is not configured',
+                ], 422);
+            }
+            $category = \App\Domain\Categories\Models\Category::where('id', $categoryId)->where('scope_id', $scope->id)->first();
+            if (!$category) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'The selected category is invalid or does not belong to scope adhkar.',
+                ], 422);
+            }
+            $query->where('category_id', $categoryId);
+        }
+
+        // Filter by category key (legacy)
         if ($request->has('category')) {
             $query->byCategoryKey($request->input('category'));
         }
 
-        // Filter by featured
         if ($request->boolean('featured')) {
             $query->featured();
         }
 
-        // Search
         if ($request->has('q') && $request->input('q')) {
             $searchTerm = $request->input('q');
             $query->where(function ($q) use ($searchTerm) {
-                // Search in title
-                $q->whereRaw("JSON_EXTRACT(title, '$.en') LIKE ?", ["%{$searchTerm}%"])
-                  ->orWhereRaw("JSON_EXTRACT(title, '$.ar') LIKE ?", ["%{$searchTerm}%"]);
-                
-                // Search in normalized Arabic text
+                $q->whereRaw("JSON_EXTRACT(text, '$.en') LIKE ?", ["%{$searchTerm}%"])
+                  ->orWhereRaw("JSON_EXTRACT(text, '$.ar') LIKE ?", ["%{$searchTerm}%"]);
                 $normalizedTerm = \App\Support\Arabic\ArabicTextNormalizer::normalize($searchTerm);
                 $q->orWhere('text_ar_normalized', 'like', "%{$normalizedTerm}%");
             });
@@ -53,12 +71,16 @@ class AdhkarController extends Controller
         $perPage = min((int) $request->input('per_page', 15), 50);
         $adhkar = $query->with('category')->paginate($perPage);
 
-        $locale = $request->header('Accept-Language', 'en');
+        $savedIds = $this->savedAdhkarIds($request);
+        $data = $adhkar->map(fn ($dhikr) => new AdhkarResource([
+            'adhkar' => $dhikr,
+            'is_saved' => $savedIds->contains((string) $dhikr->id),
+        ]))->map(fn ($r) => $r->toArray($request));
 
         return response()->json([
             'status' => true,
             'message' => 'Adhkar retrieved successfully',
-            'data' => $adhkar->map(fn ($dhikr) => $dhikr->toApiArray($locale)),
+            'data' => $data,
             'meta' => [
                 'current_page' => $adhkar->currentPage(),
                 'per_page' => $adhkar->perPage(),
@@ -69,11 +91,35 @@ class AdhkarController extends Controller
     }
 
     /**
-     * Get a single dhikr
-     * 
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
+     * Create adhkar. Accepts only category_id (required, must belong to adhkar scope)
+     * plus optional text, reward, count, source. Legacy category fields are rejected.
+     */
+    public function store(StoreAdhkarRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $text = $data['text'] ?? [];
+        $adhkar = Adhkar::create([
+            'category_id' => $data['category_id'],
+            'text' => [
+                'ar' => $text['ar'] ?? '',
+                'en' => $text['en'] ?? '',
+            ],
+            'reward' => $data['reward'] ?? null,
+            'count' => $data['count'] ?? 1,
+            'source' => $data['source'] ?? null,
+            'is_active' => true,
+        ]);
+        $adhkar->load('category');
+        $locale = $request->header('Accept-Language', 'en');
+        return response()->json([
+            'status' => true,
+            'message' => 'Adhkar created successfully',
+            'data' => $adhkar->toApiArray($locale),
+        ], 201);
+    }
+
+    /**
+     * Get a single dhikr. GET /api/v1/adhkar/{id}. Includes is_saved when authenticated.
      */
     public function show(Request $request, int $id): JsonResponse
     {
@@ -81,12 +127,16 @@ class AdhkarController extends Controller
             ->active()
             ->findOrFail($id);
 
-        $locale = $request->header('Accept-Language', 'en');
+        $savedIds = $this->savedAdhkarIds($request);
+        $resource = new AdhkarResource([
+            'adhkar' => $dhikr,
+            'is_saved' => $savedIds->contains((string) $dhikr->id),
+        ]);
 
         return response()->json([
             'status' => true,
             'message' => 'Dhikr retrieved successfully',
-            'data' => $dhikr->toApiArray($locale),
+            'data' => $resource->toArray($request),
         ]);
     }
 
@@ -168,7 +218,7 @@ class AdhkarController extends Controller
     }
 
     /**
-     * Get adhkar by category key
+     * Get adhkar by category key (legacy: morning, evening, etc.)
      * 
      * @param Request $request
      * @param string $category
@@ -189,5 +239,55 @@ class AdhkarController extends Controller
             'message' => 'Adhkar retrieved successfully',
             'data' => $adhkar->map(fn ($dhikr) => $dhikr->toApiArray($locale)),
         ]);
+    }
+
+    /**
+     * Get adhkar by admin category ID (Library scope=Adhkar).
+     * GET /api/v1/adhkar/by-category/{id}. Returns items with is_saved when authenticated.
+     * 422 if category does not belong to scope adhkar.
+     */
+    public function byCategoryId(Request $request, int $id): JsonResponse
+    {
+        $scope = ContentScope::where('key', self::SCOPE_KEY)->first();
+        if (!$scope) {
+            return response()->json(['status' => false, 'message' => 'Scope adhkar is not configured'], 422);
+        }
+        $category = \App\Domain\Categories\Models\Category::where('id', $id)->where('scope_id', $scope->id)->first();
+        if (!$category) {
+            return response()->json([
+                'status' => false,
+                'message' => 'The selected category is invalid or does not belong to scope adhkar.',
+            ], 422);
+        }
+
+        $adhkar = Adhkar::active()
+            ->where('category_id', $id)
+            ->ordered()
+            ->with('category')
+            ->get();
+
+        $savedIds = $this->savedAdhkarIds($request);
+        $data = $adhkar->map(fn ($dhikr) => (new AdhkarResource([
+            'adhkar' => $dhikr,
+            'is_saved' => $savedIds->contains((string) $dhikr->id),
+        ]))->toArray($request));
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Adhkar retrieved successfully',
+            'data' => $data,
+        ]);
+    }
+
+    /** Return set of saved adhkar item ids for the current user (empty when not authenticated). */
+    private function savedAdhkarIds(Request $request): \Illuminate\Support\Collection
+    {
+        $user = $request->user();
+        if (!$user) {
+            return collect();
+        }
+        return $user->savedItems()
+            ->where('item_type', 'adhkar')
+            ->pluck('item_id');
     }
 }

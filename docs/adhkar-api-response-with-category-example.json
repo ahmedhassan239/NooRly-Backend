@@ -1,0 +1,26 @@
+{
+  "status": true,
+  "message": "Dhikr retrieved successfully",
+  "data": {
+    "id": 1,
+    "type": "adhkar",
+    "repeat_count": 3,
+    "source": "Sahih Bukhari",
+    "category_id": 5,
+    "content": {
+      "text": {
+        "ar": "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ",
+        "en": "Glory and praise be to Allah"
+      },
+      "reward": {
+        "ar": "حَسَنَاتٌ كَثِيرَةٌ",
+        "en": "Many good deeds"
+      }
+    },
+    "category": {
+      "id": 5,
+      "name": "Morning Adhkar",
+      "slug": "morning-adhkar"
+    }
+  }
+}

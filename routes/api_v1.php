@@ -96,9 +96,11 @@ Route::prefix('v1')->group(function () {
     Route::prefix('adhkar')->group(function () {
         Route::get('/', [AdhkarController::class, 'index']);
         Route::get('/categories', [AdhkarController::class, 'categories']);
+        Route::get('/by-category/{id}', [AdhkarController::class, 'byCategoryId'])->whereNumber('id');
         Route::get('/category/{category}', [AdhkarController::class, 'byCategory']);
         Route::get('/{id}', [AdhkarController::class, 'show']);
     });
+    Route::post('/adhkar', [AdhkarController::class, 'store'])->middleware('auth:sanctum');
 
     /*
     |--------------------------------------------------------------------------

@@ -46,6 +46,7 @@ class CategoryResource extends Resource
                             ->label('Content Scope')
                             ->options(function () {
                                 return ContentScope::active()
+                                    ->whereNotIn('key', ['hadith', 'verses'])
                                     ->orderBy('label')
                                     ->pluck('label', 'id');
                             })

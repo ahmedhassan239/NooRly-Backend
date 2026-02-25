@@ -16,7 +16,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * 
  * @property int $id
  * @property int|null $category_id
- * @property array $title Translatable title
  * @property array $text Translatable dhikr text
  * @property string|null $text_ar_normalized Normalized Arabic text for search
  * @property int $count Number of times to repeat
@@ -37,7 +36,6 @@ class Adhkar extends Model
 
     protected $fillable = [
         'category_id',
-        'title',
         'text',
         'text_ar_normalized',
         'count',
@@ -51,7 +49,6 @@ class Adhkar extends Model
     ];
 
     protected $casts = [
-        'title' => 'array',
         'text' => 'array',
         'reward' => 'array',
         'count' => 'integer',
@@ -68,15 +65,6 @@ class Adhkar extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
-    }
-
-    /**
-     * Get title for a specific locale
-     */
-    public function getLocalizedTitle(?string $locale = null): string
-    {
-        $locale = $locale ?? app()->getLocale();
-        return $this->title[$locale] ?? $this->title['en'] ?? '';
     }
 
     /**
@@ -155,24 +143,49 @@ class Adhkar extends Model
     }
 
     /**
-     * Convert to API format
+     * Normalize text/reward array to ar/en with null-safe empty string.
+     */
+    private function normalizeContentArray(?array $value): array
+    {
+        if ($value === null || !is_array($value)) {
+            return ['ar' => '', 'en' => ''];
+        }
+        return [
+            'ar' => (string) ($value['ar'] ?? ''),
+            'en' => (string) ($value['en'] ?? ''),
+        ];
+    }
+
+    /**
+     * Convert to API format (normalized structure, null-safe).
+     * Backward compatible: reads text/reward from DB; title no longer used.
      */
     public function toApiArray(?string $locale = null): array
     {
-        return [
+        $text = $this->normalizeContentArray($this->text);
+        $reward = $this->normalizeContentArray($this->reward);
+
+        $payload = [
             'id' => $this->id,
-            'title' => $this->getLocalizedTitle($locale),
-            'text' => $this->getLocalizedText($locale),
-            'text_ar' => $this->text['ar'] ?? null,
-            'count' => $this->count,
-            'reward' => $this->getLocalizedReward($locale),
-            'source' => $this->source,
-            'audio_url' => $this->audio_url,
-            'category_key' => $this->category_key,
-            'category' => $this->category ? [
-                'id' => $this->category->id,
-                'name' => $this->category->getTranslation('name', $locale ?? 'en'),
-            ] : null,
+            'type' => 'adhkar',
+            'repeat_count' => (int) $this->count,
+            'source' => (string) ($this->source ?? ''),
+            'content' => [
+                'text' => $text,
+                'reward' => $reward,
+            ],
         ];
+
+        $payload['category_id'] = $this->category_id;
+
+        if ($this->relationLoaded('category') && $this->category) {
+            $payload['category'] = [
+                'id' => $this->category->id,
+                'name' => $this->category->getName($locale ?? 'en'),
+                'slug' => $this->category->getSlug($locale ?? 'en'),
+            ];
+        }
+
+        return $payload;
     }
 }
