@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Adhkar\Adhkar;
+use App\Domain\Duas\Dua;
 use App\Domain\QuranAllLang\Helpers\SurahHelper;
 use App\Domain\QuranAllLang\Models\QuranVerse;
 use App\Http\Controllers\Controller;
@@ -43,6 +44,9 @@ class SavedItemController extends Controller
         }
         if ($type === 'adhkar') {
             return $this->savedAdhkarIndex($request);
+        }
+        if ($type === 'dua') {
+            return $this->savedDuasIndex($request);
         }
 
         $user = $request->user();
@@ -222,6 +226,17 @@ class SavedItemController extends Controller
     }
 
     /**
+     * Convert dua_key slug to human-readable title: "before-eating" -> "Before Eating".
+     */
+    private function formatDuaKey(string $key): string
+    {
+        if ($key === '') {
+            return 'Dua';
+        }
+        return ucwords(str_replace(['-', '_'], ' ', $key));
+    }
+
+    /**
      * Human-readable collection/source name for hadith.
      */
     private function formatCollectionName(string $source): string
@@ -377,6 +392,85 @@ class SavedItemController extends Controller
                 continue;
             }
             $items[] = array_merge($adhkar->toApiArray($locale), ['is_saved' => true]);
+        }
+
+        return $this->successResponse([
+            'items' => $items,
+            'total' => $total,
+        ], null, 200, [
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'has_more' => $offset + $savedRows->count() < $total,
+        ]);
+    }
+
+    /**
+     * GET /saved?type=dua — hydrated saved duas (latest first, paginated).
+     */
+    private function savedDuasIndex(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $perPage = (int) $request->query('per_page', 20);
+        $perPage = $perPage < 1 ? 20 : min($perPage, 100);
+
+        $savedQuery = $user->savedItems()
+            ->where('item_type', 'dua')
+            ->orderByDesc('created_at');
+
+        $total = $savedQuery->count();
+        $page = max(1, (int) $request->query('page', 1));
+        $offset = ($page - 1) * $perPage;
+
+        $savedRows = $savedQuery->offset($offset)->limit($perPage)->get(['id', 'item_id', 'created_at']);
+
+        $duaIds = $savedRows->pluck('item_id')->map(function ($id) {
+            return is_numeric($id) ? (int) $id : $id;
+        })->all();
+
+        if (count($duaIds) === 0) {
+            return $this->successResponse([
+                'items' => [],
+                'total' => $total,
+            ], null, 200, [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'has_more' => false,
+            ]);
+        }
+
+        $locale = $this->getPreferredLocale($request);
+
+        $duaModels = Dua::where('is_active', true)
+            ->with('categories')
+            ->whereIn('id', $duaIds)
+            ->get()
+            ->keyBy('id');
+
+        $items = [];
+        foreach ($duaIds as $did) {
+            $dua = $duaModels->get($did);
+            if (!$dua) {
+                continue;
+            }
+            $textAr = $dua->getTranslation('text', 'ar');
+            $textLocale = $dua->getTranslation('text', $locale);
+            $title = $this->formatDuaKey($dua->dua_key ?? '');
+            $items[] = [
+                'id' => $dua->id,
+                'item_id' => $dua->id,
+                'title' => $title,
+                'title_ar' => $title,
+                'text' => $textLocale,
+                'text_ar' => $textAr,
+                'text_en' => $dua->getTranslation('text', 'en'),
+                'transliteration' => $dua->transliteration,
+                'source' => $dua->source,
+                'category_id' => $dua->categories->first()?->id,
+                'category_name' => $dua->categories->first()?->getName($locale),
+                'is_saved' => true,
+            ];
         }
 
         return $this->successResponse([
