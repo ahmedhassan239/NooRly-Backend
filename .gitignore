@@ -22,3 +22,20 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# Flutter
+Flutter-App/build/
+Flutter-App/.dart_tool/
+Flutter-App/.packages
+Flutter-App/.flutter-plugins
+Flutter-App/.flutter-plugins-dependencies
+
+# APK
+*.apk
+*.aab
+# Restructure conflict backups (review then remove)
+_conflicts_backup_*
+# Security / tokens
+ghp_*
+*.pem
+*.key
+*.pub

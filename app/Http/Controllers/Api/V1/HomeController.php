@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Application\DailyInspiration\DailyInspirationService;
 use App\Application\Home\GetHomeDashboardDataAction;
-use App\Domain\AppSettings\AppSetting;
 use App\Domain\Home\HomeSection;
 use App\Domain\QuranAllLang\Models\QuranVerse;
 use App\Http\Controllers\Controller;
@@ -23,15 +23,12 @@ class HomeController extends Controller
 
     /**
      * Get home dashboard data
-     * 
+     *
      * Returns aggregated content for the home screen including:
      * - Daily verse (ayah of the day)
      * - Daily hadith
      * - Home sections configuration
      * - Featured content
-     * 
-     * @param Request $request
-     * @return JsonResponse
      */
     public function dashboard(Request $request): JsonResponse
     {
@@ -75,29 +72,30 @@ class HomeController extends Controller
     {
         $dayOfYear = now()->dayOfYear;
         $totalVerses = QuranVerse::count();
-        
+
         if ($totalVerses === 0) {
             return null;
         }
 
         $verseIndex = $dayOfYear % $totalVerses;
-        
+
         $verse = QuranVerse::with(['verseTexts' => function ($q) {
             $q->forActiveLanguages()
-              ->with('translation.language');
+                ->with('translation.language');
         }])
-        ->orderBy('id')
-        ->skip($verseIndex)
-        ->first();
+            ->orderBy('id')
+            ->skip($verseIndex)
+            ->first();
 
-        if (!$verse) {
+        if (! $verse) {
             return null;
         }
 
         // Get texts sorted by priority
         $texts = $verse->verseTexts->sortBy(function ($vt) {
             $code = $vt->translation->language->code ?? '';
-            return match($code) {
+
+            return match ($code) {
                 'en' => 1,
                 'ar' => 2,
                 default => 3,
@@ -139,20 +137,20 @@ class HomeController extends Controller
             $totalHadiths = DB::connection($config['connection'])
                 ->table($config['table'])
                 ->count();
-            
+
             if ($totalHadiths === 0) {
                 return null;
             }
 
             $hadithIndex = $dayOfYear % $totalHadiths;
-            
+
             $hadith = DB::connection($config['connection'])
                 ->table($config['table'])
                 ->orderBy('id')
                 ->skip($hadithIndex)
                 ->first();
 
-            if (!$hadith) {
+            if (! $hadith) {
                 return null;
             }
 
@@ -179,10 +177,10 @@ class HomeController extends Controller
     {
         $completedLessons = $user->lessonCompletions()->count();
         $totalLessons = \App\Domain\Lessons\Lesson::where('is_active', true)->count();
-        
+
         // Get streak
         $streak = $user->dailyStreak;
-        
+
         return [
             'lessons_completed' => $completedLessons,
             'lessons_total' => $totalLessons,
@@ -190,5 +188,24 @@ class HomeController extends Controller
             'current_streak' => $streak?->current_streak ?? 0,
             'longest_streak' => $streak?->longest_streak ?? 0,
         ];
+    }
+
+    /**
+     * Get daily inspiration (one random item: hadith, verse, dua, adhkar).
+     * Personalized per user; stable for a configurable interval (default 3 hours).
+     * Requires auth + verified email.
+     */
+    public function dailyInspiration(Request $request, DailyInspirationService $service): JsonResponse
+    {
+        $user = $request->user();
+        $locale = $request->header('Accept-Language', 'en');
+
+        $data = $service->getOrCreate($user, $locale);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Daily inspiration retrieved successfully',
+            'data' => $data,
+        ]);
     }
 }

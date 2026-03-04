@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
 use App\Application\Auth\GuestAuthAction;
-use App\Application\Auth\RegisterAction;
 use App\Application\Auth\LoginAction;
+use App\Application\Auth\RegisterAction;
 use App\Application\Auth\SocialAuthAction;
 use App\Domain\Auth\AppUserProvider;
+use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\AppUserResource;
-use App\Support\Traits\ApiResponseTrait;
 use App\Services\Auth\EmailOtpService;
+use App\Services\Auth\PasswordResetService;
+use App\Support\Traits\ApiResponseTrait;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Exception;
 
 class AuthController extends Controller
 {
@@ -21,9 +22,12 @@ class AuthController extends Controller
 
     protected EmailOtpService $emailOtpService;
 
-    public function __construct(EmailOtpService $emailOtpService)
+    protected PasswordResetService $passwordResetService;
+
+    public function __construct(EmailOtpService $emailOtpService, PasswordResetService $passwordResetService)
     {
         $this->emailOtpService = $emailOtpService;
+        $this->passwordResetService = $passwordResetService;
     }
 
     /**
@@ -37,7 +41,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
         }
 
         $user = $action->execute($request->device_id, $request->get('locale', 'en'));
@@ -64,7 +68,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
         }
 
         $email = $request->email;
@@ -75,21 +79,22 @@ class AuthController extends Controller
 
         if ($existingProvider) {
             $user = $existingProvider->user;
-            if (!$user) {
-                return $this->errorResponse("Invalid state.", 500);
+            if (! $user) {
+                return $this->errorResponse('Invalid state.', 500);
             }
             if ($user->email_verified_at) {
-                return $this->errorResponse("Email already registered", 409);
+                return $this->errorResponse('Email already registered', 409);
             }
             try {
                 $this->emailOtpService->sendOtpForUser($user, $email);
             } catch (Exception $e) {
                 // Cooldown/rate limit: still send user to OTP screen so they can resend there
             }
+
             return $this->successResponse([
                 'needs_email_verification' => true,
                 'email' => $email,
-            ], "Please verify your email.", 200);
+            ], 'Please verify your email.', 200);
         }
 
         try {
@@ -99,10 +104,11 @@ class AuthController extends Controller
             } catch (Exception $e) {
                 // Cooldown/rate limit: still return success so user can go to OTP screen
             }
+
             return $this->successResponse([
                 'needs_email_verification' => true,
                 'email' => $email,
-            ], "Registration successful. Please verify your email.", 200);
+            ], 'Registration successful. Please verify your email.', 200);
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage(), 400);
         }
@@ -119,21 +125,23 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
         }
 
         try {
             $user = $action->execute($request->email, $request->password);
-            
-            if (!$user->email_verified_at) {
+
+            if (! $user->email_verified_at) {
                 $this->emailOtpService->sendOtpForUser($user);
+
                 return $this->successResponse([
                     'needs_email_verification' => true,
                     'email' => $request->email,
-                ], "Please verify your email.");
+                ], 'Please verify your email.');
             }
 
             $token = $user->createToken('auth_token')->plainTextToken;
+
             return $this->authResponse($user, $token);
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage(), 401);
@@ -150,7 +158,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
         }
 
         try {
@@ -158,7 +166,8 @@ class AuthController extends Controller
         } catch (Exception $e) {
             // Always return generic success to avoid enumeration; OTP sent only when user exists and is unverified
         }
-        return $this->successResponse(null, "If the email exists, an OTP has been sent.", 200);
+
+        return $this->successResponse(null, 'If the email exists, an OTP has been sent.', 200);
     }
 
     /**
@@ -172,15 +181,17 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
         }
 
         try {
             $user = $this->emailOtpService->verifyOtp($request->email, $request->otp);
             $token = $user->createToken('auth_token')->plainTextToken;
+
             return $this->authResponse($user, $token);
         } catch (Exception $e) {
             $code = $e->getCode() === 429 ? 429 : 422;
+
             return $this->errorResponse($e->getMessage(), $code);
         }
     }
@@ -203,20 +214,68 @@ class AuthController extends Controller
             $rules['identity_token'] = 'required|string';
             $token = $request->identity_token;
         } else {
-            return $this->errorResponse("Invalid provider", 400);
+            return $this->errorResponse('Invalid provider', 400);
         }
 
         $validator = Validator::make($request->all(), $rules);
         if ($validator->fails()) {
-            return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
         }
 
         try {
             $user = $action->execute($provider, $token, $request->all());
             $tokenResult = $user->createToken('social_token')->plainTextToken;
+
             return $this->authResponse($user, $tokenResult);
         } catch (Exception $e) {
             return $this->errorResponse($e->getMessage(), 401);
+        }
+    }
+
+    /**
+     * Forgot password: send reset link to email.
+     * Same response whether email exists or not. Throttled (5/min).
+     */
+    public function forgotPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
+        }
+
+        $this->passwordResetService->sendResetLink($request->email);
+
+        return $this->successResponse(null, 'Password reset link sent.', 200);
+    }
+
+    /**
+     * Reset password with token from email link.
+     */
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+            'token' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $this->passwordResetService->reset(
+                $request->email,
+                $request->token,
+                $request->password
+            );
+
+            return $this->successResponse(null, 'Password has been reset.', 200);
+        } catch (Exception $e) {
+            return $this->errorResponse($e->getMessage(), 422);
         }
     }
 
@@ -226,7 +285,8 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        return $this->successResponse(null, "Logged out successfully");
+
+        return $this->successResponse(null, 'Logged out successfully');
     }
 
     /**
@@ -235,7 +295,7 @@ class AuthController extends Controller
     protected function authResponse($user, $token)
     {
         $user->load(['profile', 'providers']);
-        
+
         $data = [
             'token' => $token,
             'token_type' => 'Bearer',

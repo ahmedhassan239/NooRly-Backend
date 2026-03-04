@@ -6,13 +6,14 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ContentScopeController;
 use App\Http\Controllers\Api\V1\DuaController;
+use App\Http\Controllers\Api\V1\EmbedSearchController;
 use App\Http\Controllers\Api\V1\EventController;
-use App\Http\Controllers\Api\V1\JourneyController;
 use App\Http\Controllers\Api\V1\HadithController;
 use App\Http\Controllers\Api\V1\HomeController;
+use App\Http\Controllers\Api\V1\JourneyController;
+use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\LibraryHadithController;
 use App\Http\Controllers\Api\V1\LibraryVersesController;
-use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\OnboardingController;
 use App\Http\Controllers\Api\V1\PrayerTimeController;
 use App\Http\Controllers\Api\V1\QuranController;
@@ -23,7 +24,7 @@ use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-    
+
     /*
     |--------------------------------------------------------------------------
     | System & Configuration
@@ -32,7 +33,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', [SystemController::class, 'health']);
     Route::get('/health/tables', [SystemController::class, 'tables']);
     Route::post('/events', [EventController::class, 'store']);
-    
+
+    // Embed search for Tiptap (hadith/ayah chips)
+    Route::get('/search/hadith', [EmbedSearchController::class, 'hadith']);
+    Route::get('/search/ayah', [EmbedSearchController::class, 'ayah']);
+
     // App Configuration (Remote Config)
     Route::get('/app-config', [AppConfigController::class, 'index']);
     Route::get('/app-config/settings/{key}', [AppConfigController::class, 'show']);
@@ -156,11 +161,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/social/{provider}', [AuthController::class, 'social']);
-        
+
         // Email OTP
         Route::post('/email/send-otp', [AuthController::class, 'sendEmailOtp']);
         Route::post('/email/verify-otp', [AuthController::class, 'verifyEmailOtp']);
-        
+
+        // Password reset (throttle: 5 per minute per IP)
+        Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
+        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
         Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
     });
 
@@ -168,10 +177,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'verified.email'])->group(function () {
         Route::get('/me', [UserController::class, 'me']);
         Route::put('/me/profile', [UserController::class, 'updateProfile']);
-        
+
         Route::get('/me/onboarding', [OnboardingController::class, 'show']);
         Route::put('/me/onboarding', [OnboardingController::class, 'update']);
-        
+
         Route::get('/me/settings', [SettingsController::class, 'show']);
         Route::put('/me/settings', [SettingsController::class, 'update']);
 
@@ -179,6 +188,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/saved', [SavedItemController::class, 'index']);
         Route::post('/saved/{type}/{itemId}', [SavedItemController::class, 'store']);
         Route::delete('/saved/{type}/{itemId}', [SavedItemController::class, 'destroy']);
+
+        // Home - Daily Inspiration (personalized, stable per user for refresh interval)
+        Route::get('/home/daily-inspiration', [HomeController::class, 'dailyInspiration']);
 
         // Journey (weeks + lessons)
         Route::get('/journey', [JourneyController::class, 'index']);
@@ -214,7 +226,7 @@ Route::prefix('v1')->group(function () {
         // Verses
         Route::get('/verses', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'indexVerses']);
         Route::get('/verses/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'showVerse']);
-        
+
         // Verse Texts
         Route::put('/verse-texts/{id}', [\App\Http\Controllers\Api\V1\Admin\QuranAllLangController::class, 'updateVerseText']);
     });

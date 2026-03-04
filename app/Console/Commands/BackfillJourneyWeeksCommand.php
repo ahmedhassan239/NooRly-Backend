@@ -20,6 +20,7 @@ class BackfillJourneyWeeksCommand extends Command
     {
         if (! Schema::hasColumn('lessons', 'day_number')) {
             $this->info('Lessons table no longer has day_number. Backfill only applies to legacy data. Nothing to do.');
+
             return self::SUCCESS;
         }
 
@@ -37,6 +38,7 @@ class BackfillJourneyWeeksCommand extends Command
 
         if ($lessons->isEmpty()) {
             $this->info('No lessons with day_number found. Nothing to backfill.');
+
             return self::SUCCESS;
         }
 
@@ -50,12 +52,14 @@ class BackfillJourneyWeeksCommand extends Command
         foreach ($byWeek as $weekNumber => $weekLessons) {
             if ($skipExisting && JourneyWeek::where('week_number', $weekNumber)->exists()) {
                 $skipped++;
+
                 continue;
             }
 
             if ($dryRun) {
-                $this->line("Would create week {$weekNumber} with " . $weekLessons->count() . ' lessons.');
+                $this->line("Would create week {$weekNumber} with ".$weekLessons->count().' lessons.');
                 $created++;
+
                 continue;
             }
 
@@ -85,7 +89,7 @@ class BackfillJourneyWeeksCommand extends Command
             $created++;
         }
 
-        $this->info("Processed {$created} week(s)." . ($skipped ? " Skipped {$skipped} existing." : ''));
+        $this->info("Processed {$created} week(s).".($skipped ? " Skipped {$skipped} existing." : ''));
 
         return self::SUCCESS;
     }
