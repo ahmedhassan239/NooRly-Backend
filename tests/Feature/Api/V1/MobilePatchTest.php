@@ -3,8 +3,9 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Domain\Auth\AppUser;
-use App\Domain\Lessons\Services\LessonDatasetService;
-use App\Domain\Prayers\Services\PrayerTimesService;
+use App\Domain\Journey\JourneyWeek;
+use App\Domain\Journey\JourneyWeekLesson;
+use App\Domain\Lessons\Lesson;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,7 @@ class MobilePatchTest extends TestCase
     use RefreshDatabase;
 
     private AppUser $user;
+
     private string $token;
 
     protected function setUp(): void
@@ -46,9 +48,9 @@ class MobilePatchTest extends TestCase
                 'summary' => 'Summary 2',
                 'content' => 'Content 2',
                 'estimated_minutes' => 10,
-            ]
+            ],
         ];
-        
+
         Storage::put('content/lessons/en.json', json_encode($lessonsData));
         Storage::put('content/lessons/ar.json', json_encode($lessonsData));
     }
@@ -56,13 +58,13 @@ class MobilePatchTest extends TestCase
     /** @test */
     public function it_can_get_onboarding_and_settings()
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->getJson('/api/v1/me/onboarding');
 
         $response->assertStatus(200)
             ->assertJsonStructure(['data' => ['start_date', 'timezone']]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->getJson('/api/v1/me/settings');
 
         $response->assertStatus(200)
@@ -72,7 +74,7 @@ class MobilePatchTest extends TestCase
     /** @test */
     public function it_can_update_settings()
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->putJson('/api/v1/me/settings', [
                 'language' => 'ar',
                 'dark_mode' => true,
@@ -86,14 +88,28 @@ class MobilePatchTest extends TestCase
     /** @test */
     public function it_can_get_today_lesson()
     {
-        // Set start date to today
-        $this->user->onboarding()->create(['start_date' => now()]);
+        $week = JourneyWeek::create([
+            'week_number' => 1,
+            'title' => 'Week 1',
+            'is_active' => true,
+        ]);
+        $lesson = Lesson::factory()->create(['title' => 'Test Lesson 1', 'duration_minutes' => 5]);
+        JourneyWeekLesson::create([
+            'journey_week_id' => $week->id,
+            'lesson_id' => $lesson->id,
+            'day_number' => 1,
+            'position' => 1,
+            'sort_order' => 101,
+        ]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->getJson('/api/v1/lessons/today');
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.day_number', 1);
+            ->assertJsonPath('data.lesson_id', $lesson->id)
+            ->assertJsonPath('data.day', 1)
+            ->assertJsonPath('data.week', 1)
+            ->assertJsonPath('data.status', 'current');
     }
 
     /** @test */
@@ -101,7 +117,7 @@ class MobilePatchTest extends TestCase
     {
         $lessonId = 'lesson_1';
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->postJson("/api/v1/lessons/{$lessonId}/complete");
 
         $response->assertStatus(200);
@@ -110,7 +126,7 @@ class MobilePatchTest extends TestCase
             'lesson_id' => $lessonId,
         ]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->putJson("/api/v1/lessons/{$lessonId}/reflection", [
                 'reflection_text' => 'Great lesson',
             ]);
@@ -128,7 +144,7 @@ class MobilePatchTest extends TestCase
     {
         $lessonId = 'lesson_1';
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->postJson("/api/v1/saved/lesson/{$lessonId}");
 
         $response->assertStatus(201);
@@ -138,7 +154,7 @@ class MobilePatchTest extends TestCase
             'item_id' => $lessonId,
         ]);
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->deleteJson("/api/v1/saved/lesson/{$lessonId}");
 
         $response->assertStatus(200);
@@ -157,7 +173,7 @@ class MobilePatchTest extends TestCase
                     'timings' => ['Fajr' => '05:00'],
                     'date' => ['readable' => '23 Dec 2025'],
                     'meta' => ['method' => ['name' => 'ISNA'], 'timezone' => 'UTC'],
-                ]
+                ],
             ], 200),
         ]);
 
@@ -176,7 +192,7 @@ class MobilePatchTest extends TestCase
     /** @test */
     public function it_logs_events()
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->postJson('/api/v1/events', [
                 'event_type' => 'test_event',
                 'entity_type' => 'test_entity',

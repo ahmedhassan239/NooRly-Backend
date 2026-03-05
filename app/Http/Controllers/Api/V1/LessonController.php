@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
-use App\Domain\Lessons\Services\LessonService;
+use App\Domain\Journey\Services\JourneyService;
 use App\Domain\Lessons\Services\LessonDatasetService;
+use App\Domain\Lessons\Services\LessonService;
+use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\LessonResource;
 use App\Support\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 class LessonController extends Controller
 {
@@ -18,7 +18,8 @@ class LessonController extends Controller
 
     public function __construct(
         private readonly LessonService $lessonService,
-        private readonly LessonDatasetService $datasetService
+        private readonly LessonDatasetService $datasetService,
+        private readonly JourneyService $journeyService
     ) {}
 
     /**
@@ -35,15 +36,15 @@ class LessonController extends Controller
         $lessons = collect($this->datasetService->getAll($lang));
 
         if ($week) {
-            $lessons = $lessons->where('week_number', (int)$week);
+            $lessons = $lessons->where('week_number', (int) $week);
         }
 
         if ($day) {
-            $lessons = $lessons->where('day_number', (int)$day);
+            $lessons = $lessons->where('day_number', (int) $day);
         }
 
         $user = $request->user();
-        
+
         // Enrich with user state
         $lessons = $lessons->map(function ($lesson) use ($user) {
             return $this->lessonService->enrichLessonWithState($user, $lesson);
@@ -67,22 +68,27 @@ class LessonController extends Controller
     }
 
     /**
-     * Get today's lesson.
+     * Get today's lesson from Journey progress (current lesson = first non-completed).
+     * Does not use LessonDatasetService. Never returns 500.
      */
     public function today(Request $request): JsonResponse
     {
-        $lang = app()->getLocale();
-        $user = $request->user();
-        
-        $lesson = $this->lessonService->getTodayLesson($user, $lang);
+        try {
+            $user = $request->user();
+            $locale = $request->get('lang', app()->getLocale());
 
-        if (!$lesson) {
-            return $this->errorResponse("Today's lesson not available", 404);
+            $data = $this->journeyService->getCurrentLessonForUser($user, $locale);
+
+            if ($data === null) {
+                return $this->successResponse(null, 'No lesson today', 200);
+            }
+
+            return $this->successResponse($data, "Today's lesson retrieved", 200);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->successResponse(null, 'No lesson today', 200);
         }
-
-        $lesson = $this->lessonService->enrichLessonWithState($user, $lesson);
-
-        return $this->successResponse(new LessonResource($lesson));
     }
 
     /**

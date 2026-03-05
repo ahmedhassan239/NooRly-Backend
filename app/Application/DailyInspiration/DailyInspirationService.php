@@ -9,6 +9,7 @@ use App\Domain\DailyInspiration\UserDailyInspiration;
 use App\Domain\Duas\Dua;
 use App\Domain\QuranAllLang\Models\QuranVerse;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -90,13 +91,193 @@ class DailyInspirationService
             return $record;
         });
 
-        $payload = $this->buildItemPayload($record->type, (int) $record->item_id, $locale);
+        $unified = $this->buildUnifiedPayload($record->type, (int) $record->item_id, $locale);
 
-        return [
-            'type' => $record->type,
+        return array_merge($unified, [
             'refresh_after_seconds' => $refreshSeconds,
             'expires_at' => $record->expires_at->toIso8601String(),
-            'item' => $payload,
+        ]);
+    }
+
+    /**
+     * Get a single daily inspiration for the whole day (same for all users).
+     * Cached until end of day. Returns a unified shape for the Flutter app.
+     *
+     * @return array{type: string, title: string, arabic: string, translation: string, source?: string, surah?: string}
+     */
+    public function getGlobalDailyUnified(string $locale): array
+    {
+        $cacheKey = 'daily_inspiration_unified:'.now()->format('Y-m-d');
+        $ttl = now()->endOfDay()->addSecond();
+
+        return Cache::remember($cacheKey, $ttl, function () use ($locale) {
+            $locale = strlen($locale) >= 2 ? strtolower(substr($locale, 0, 2)) : 'en';
+
+            $type = $this->pickRandomType();
+            $itemId = $this->pickRandomItem($type, null);
+
+            if ($itemId === null) {
+                foreach (self::TYPES as $fallbackType) {
+                    if ($fallbackType === $type) {
+                        continue;
+                    }
+                    $itemId = $this->pickRandomItem($fallbackType, null);
+                    if ($itemId !== null) {
+                        $type = $fallbackType;
+                        break;
+                    }
+                }
+            }
+
+            if ($itemId === null) {
+                throw new \RuntimeException('No content available for daily inspiration.');
+            }
+
+            $tableName = $this->getTableNameForType($type);
+            Log::debug('Daily inspiration selected', [
+                'type' => $this->publicType($type),
+                'record_id' => $itemId,
+                'table' => $tableName,
+            ]);
+
+            return $this->buildUnifiedPayload($type, $itemId, $locale);
+        });
+    }
+
+    private function getTableNameForType(string $internalType): string
+    {
+        return match ($internalType) {
+            'hadith' => config('content_sources.hadith.table', 'hadiths'),
+            'verse' => (new QuranVerse)->getTable(),
+            'dua' => (new Dua)->getTable(),
+            'adhkar' => (new Adhkar)->getTable(),
+            default => 'unknown',
+        };
+    }
+
+    /** @return 'ayah'|'hadith'|'dhikr'|'dua' */
+    private function publicType(string $internalType): string
+    {
+        return match ($internalType) {
+            'verse' => 'ayah',
+            'adhkar' => 'dhikr',
+            default => $internalType,
+        };
+    }
+
+    /**
+     * Build unified response: type, title, arabic, translation, and source or surah.
+     *
+     * @return array{type: string, title: string, arabic: string, translation: string, source?: string, surah?: string}
+     */
+    private function buildUnifiedPayload(string $internalType, int $itemId, string $locale): array
+    {
+        $type = $this->publicType($internalType);
+
+        return match ($internalType) {
+            'hadith' => $this->buildUnifiedHadith($itemId),
+            'verse' => $this->buildUnifiedAyah($itemId, $locale),
+            'dua' => $this->buildUnifiedDua($itemId, $locale),
+            'adhkar' => $this->buildUnifiedDhikr($itemId),
+            default => [],
+        };
+    }
+
+    /** @return array{type: 'hadith', title: string, arabic: string, translation: string, source: string} */
+    private function buildUnifiedHadith(int $itemId): array
+    {
+        $config = $this->getHadithConfig();
+        $cols = $config['columns'];
+
+        $hadith = DB::connection($config['connection'])
+            ->table($config['table'])
+            ->where('id', $itemId)
+            ->first();
+
+        if (! $hadith) {
+            return ['type' => 'hadith', 'id' => $itemId, 'title' => 'Hadith', 'arabic' => '', 'translation' => '', 'source' => ''];
+        }
+
+        return [
+            'type' => 'hadith',
+            'id' => (int) $hadith->id,
+            'title' => 'Hadith',
+            'arabic' => (string) $hadith->{$cols['text_ar']},
+            'translation' => (string) $hadith->{$cols['text_en']},
+            'source' => $this->formatHadithCollectionName($hadith->{$cols['collection']}),
+        ];
+    }
+
+    /** @return array{type: 'ayah', title: string, arabic: string, translation: string, surah: string} */
+    private function buildUnifiedAyah(int $itemId, string $locale): array
+    {
+        $verse = QuranVerse::with(['verseTexts' => function ($q) {
+            $q->forActiveLanguages()->with('translation.language');
+        }])->find($itemId);
+
+        if (! $verse) {
+            return ['type' => 'ayah', 'id' => $itemId, 'title' => 'Quran', 'arabic' => '', 'translation' => '', 'surah' => '', 'ayah_number' => null];
+        }
+
+        $texts = $verse->verseTexts->sortBy(fn ($vt) => match ($vt->translation->language->code ?? '') {
+            'en' => 1, 'ar' => 2, default => 3,
+        });
+        $primaryText = $texts->first();
+        $arabicText = $texts->firstWhere(fn ($vt) => ($vt->translation->language->code ?? '') === 'ar');
+
+        $surahLabel = $verse->surah_name.' '.$verse->ayah_number;
+
+        return [
+            'type' => 'ayah',
+            'id' => (int) $verse->id,
+            'title' => 'Quran',
+            'arabic' => (string) ($arabicText?->text ?? ''),
+            'translation' => (string) ($primaryText?->text ?? ''),
+            'surah' => $surahLabel,
+            'ayah_number' => (int) $verse->ayah_number,
+        ];
+    }
+
+    /** @return array{type: 'dua', title: string, arabic: string, translation: string, source: string} */
+    private function buildUnifiedDua(int $itemId, string $locale): array
+    {
+        $dua = Dua::where('is_active', true)->find($itemId);
+
+        if (! $dua) {
+            return ['type' => 'dua', 'id' => $itemId, 'title' => 'Dua', 'arabic' => '', 'translation' => '', 'source' => ''];
+        }
+
+        $textAr = $dua->getTranslation('text', 'ar');
+        $textLocale = $dua->getTranslation('text', $locale);
+
+        return [
+            'type' => 'dua',
+            'id' => (int) $dua->id,
+            'title' => $dua->getTranslation('name', $locale) ?: 'Dua',
+            'arabic' => (string) $textAr,
+            'translation' => (string) $textLocale,
+            'source' => (string) ($dua->source ?? ''),
+        ];
+    }
+
+    /** @return array{type: 'dhikr', title: string, arabic: string, translation: string, source: string} */
+    private function buildUnifiedDhikr(int $itemId): array
+    {
+        $adhkar = Adhkar::active()->find($itemId);
+
+        if (! $adhkar) {
+            return ['type' => 'dhikr', 'id' => $itemId, 'title' => 'Dhikr', 'arabic' => '', 'translation' => '', 'source' => ''];
+        }
+
+        $text = $adhkar->text ?? [];
+
+        return [
+            'type' => 'dhikr',
+            'id' => (int) $adhkar->id,
+            'title' => 'Dhikr',
+            'arabic' => (string) ($text['ar'] ?? ''),
+            'translation' => (string) ($text['en'] ?? ''),
+            'source' => (string) ($adhkar->source ?? ''),
         ];
     }
 
@@ -118,32 +299,40 @@ class DailyInspirationService
 
     private function pickRandomHadithId(?int $excludeId): ?int
     {
-        $config = $this->getHadithConfig();
-        $query = DB::connection($config['connection'])
-            ->table($config['table'])
-            ->select('id');
+        try {
+            $config = $this->getHadithConfig();
+            $query = DB::connection($config['connection'])
+                ->table($config['table'])
+                ->select('id');
 
-        if ($excludeId !== null) {
-            $query->where('id', '!=', $excludeId);
-        }
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
 
-        $ids = $query->pluck('id')->toArray();
-        if (empty($ids)) {
+            $ids = $query->pluck('id')->toArray();
+            if (empty($ids)) {
+                return null;
+            }
+
+            return (int) $ids[array_rand($ids)];
+        } catch (\Throwable) {
             return null;
         }
-
-        return (int) $ids[array_rand($ids)];
     }
 
     private function pickRandomVerseId(?int $excludeId): ?int
     {
-        $query = QuranVerse::query()->select('id');
-        if ($excludeId !== null) {
-            $query->where('id', '!=', $excludeId);
-        }
-        $id = $query->inRandomOrder()->value('id');
+        try {
+            $query = QuranVerse::query()->select('id');
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
+            $id = $query->inRandomOrder()->value('id');
 
-        return $id !== null ? (int) $id : null;
+            return $id !== null ? (int) $id : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function pickRandomDuaId(?int $excludeId): ?int

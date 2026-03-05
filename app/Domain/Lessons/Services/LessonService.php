@@ -10,7 +10,6 @@ use App\Domain\Lessons\Lesson;
 use App\Domain\Lessons\LessonCompletion;
 use App\Domain\Lessons\LessonReflection;
 use App\Domain\QuranAllLang\Models\QuranVerse;
-use Carbon\Carbon;
 
 class LessonService
 {
@@ -139,6 +138,7 @@ class LessonService
         if (is_numeric($id)) {
             return Lesson::where('id', (int) $id)->exists();
         }
+
         return $this->datasetService->findById($id) !== null;
     }
 
@@ -149,7 +149,7 @@ class LessonService
     {
         $onboarding = $user->onboarding;
 
-        if (!$onboarding || !$onboarding->start_date) {
+        if (! $onboarding || ! $onboarding->start_date) {
             return 1;
         }
 
@@ -167,6 +167,7 @@ class LessonService
     public function getTodayLesson(AppUser $user, string $locale = 'en'): ?array
     {
         $currentDay = $this->getUserCurrentDay($user);
+
         return $this->datasetService->findByDay($currentDay, $locale);
     }
 
@@ -227,7 +228,7 @@ class LessonService
     {
         $completedCount = LessonCompletion::where('app_user_id', $user->id)->count();
         $currentDay = $this->getUserCurrentDay($user);
-        
+
         // Find next lesson id (simplified)
         $nextDay = min(90, $currentDay + 1);
         $nextLesson = $this->datasetService->findByDay($nextDay);
@@ -235,7 +236,7 @@ class LessonService
         return [
             'completed_count' => $completedCount,
             'current_day' => $currentDay,
-            'next_lesson_id' => $nextLesson['id'] ?? null,
+            'next_lesson_id' => $nextLesson !== null ? ($nextLesson['id'] ?? null) : null,
             'total_days' => 90,
         ];
     }

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AppConfigController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ContentScopeController;
+use App\Http\Controllers\Api\V1\DailyInspirationController;
 use App\Http\Controllers\Api\V1\DuaController;
 use App\Http\Controllers\Api\V1\EmbedSearchController;
 use App\Http\Controllers\Api\V1\EventController;
@@ -155,6 +156,14 @@ Route::prefix('v1')->group(function () {
     */
     Route::get('/home/dashboard', [HomeController::class, 'dashboard']);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Daily Inspiration from Library Collections (Public)
+    | Hadith or ayah only; IDs from HadithCollection / VerseCollection pivots.
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/daily-inspiration', DailyInspirationController::class);
+
     // Auth
     Route::prefix('auth')->group(function () {
         Route::post('/guest', [AuthController::class, 'guest']);
@@ -189,11 +198,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/saved/{type}/{itemId}', [SavedItemController::class, 'store']);
         Route::delete('/saved/{type}/{itemId}', [SavedItemController::class, 'destroy']);
 
-        // Home - Daily Inspiration (personalized, stable per user for refresh interval)
+        // Daily Inspiration (user-specific, hadith/ayah/dhikr/dua; stable per user for refresh interval)
         Route::get('/home/daily-inspiration', [HomeController::class, 'dailyInspiration']);
 
         // Journey (weeks + lessons)
         Route::get('/journey', [JourneyController::class, 'index']);
+        Route::get('/journey/summary', [JourneyController::class, 'summary']);
         Route::get('/journey/weeks/{week}', [JourneyController::class, 'week']);
 
         // Lessons

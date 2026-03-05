@@ -30,12 +30,15 @@ class SavedItemController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'type' => ['nullable', Rule::in(self::SUPPORTED_TYPES)],
+            'type' => ['nullable', Rule::in(array_merge(self::SUPPORTED_TYPES, ['all']))],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $type = $request->query('type');
+        if ($type === 'all') {
+            return $this->savedAllUnified($request);
+        }
         if ($type === 'hadith') {
             return $this->savedHadithIndex($request);
         }
@@ -72,9 +75,9 @@ class SavedItemController extends Controller
      */
     public function store(Request $request, string $type, string $itemId): JsonResponse
     {
-        if (!in_array($type, self::SUPPORTED_TYPES)) {
+        if (! in_array($type, self::SUPPORTED_TYPES)) {
             return $this->errorResponse(
-                'Invalid item type. Supported types: ' . implode(', ', self::SUPPORTED_TYPES),
+                'Invalid item type. Supported types: '.implode(', ', self::SUPPORTED_TYPES),
                 400
             );
         }
@@ -96,9 +99,9 @@ class SavedItemController extends Controller
      */
     public function destroy(Request $request, string $type, string $itemId): JsonResponse
     {
-        if (!in_array($type, self::SUPPORTED_TYPES)) {
+        if (! in_array($type, self::SUPPORTED_TYPES)) {
             return $this->errorResponse(
-                'Invalid item type. Supported types: ' . implode(', ', self::SUPPORTED_TYPES),
+                'Invalid item type. Supported types: '.implode(', ', self::SUPPORTED_TYPES),
                 400
             );
         }
@@ -110,6 +113,181 @@ class SavedItemController extends Controller
             ->delete();
 
         return $this->successResponse(null, 'Item removed from saved successfully');
+    }
+
+    /**
+     * GET /saved?type=all — unified list of all saved items (paginated, normalized shape).
+     */
+    private function savedAllUnified(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $perPage = (int) $request->query('per_page', 20);
+        $perPage = $perPage < 1 ? 20 : min($perPage, 100);
+        $page = max(1, (int) $request->query('page', 1));
+
+        $savedQuery = $user->savedItems()
+            ->whereIn('item_type', ['dua', 'hadith', 'verse', 'adhkar'])
+            ->orderByDesc('created_at');
+
+        $total = $savedQuery->count();
+        $offset = ($page - 1) * $perPage;
+        $rows = $savedQuery->offset($offset)->limit($perPage)->get();
+
+        $byType = $rows->groupBy('item_type');
+        $hadithMap = $this->hydrateHadithMap($request, $byType->get('hadith', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
+        $verseMap = $this->hydrateVerseMap($request, $byType->get('verse', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
+        $duaMap = $this->hydrateDuaMap($request, $byType->get('dua', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
+        $adhkarMap = $this->hydrateAdhkarMap($request, $byType->get('adhkar', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
+
+        $items = [];
+        foreach ($rows as $row) {
+            $itemId = $row->item_id;
+            $refId = is_numeric($itemId) ? (int) $itemId : $itemId;
+            $entry = match ($row->item_type) {
+                'hadith' => $hadithMap[$refId] ?? null,
+                'verse' => $verseMap[$refId] ?? null,
+                'dua' => $duaMap[$refId] ?? null,
+                'adhkar' => $adhkarMap[$refId] ?? null,
+                default => null,
+            };
+            if ($entry !== null) {
+                $items[] = array_merge($entry, ['id' => (int) $row->id, 'reference_id' => $refId]);
+            }
+        }
+
+        return $this->successResponse([
+            'items' => $items,
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'has_more' => $offset + $rows->count() < $total,
+            ],
+        ], null, 200);
+    }
+
+    /** @return array<int|string, array{type: string, title: string, arabic: string|null, translation: string|null, source: string|null}> */
+    private function hydrateHadithMap(Request $request, array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+        $config = $this->getHadithConfig();
+        $locale = $this->getPreferredLocale($request);
+        $textCol = $locale === 'ar' ? ($config['columns']['text_ar'] ?? 'text_ar') : ($config['columns']['text_en'] ?? 'text_en');
+        $rows = DB::connection($config['connection'])->table($config['table'])->whereIn('id', $itemIds)->get()->keyBy('id');
+        $out = [];
+        foreach ($itemIds as $id) {
+            $row = $rows->get($id);
+            if (! $row) {
+                continue;
+            }
+            $source = $row->{$config['columns']['collection'] ?? 'source'} ?? '';
+            $out[$id] = [
+                'type' => 'hadith',
+                'title' => $this->formatCollectionName((string) $source),
+                'arabic' => $row->{$config['columns']['text_ar'] ?? 'text_ar'} ?? null,
+                'translation' => $row->{$config['columns']['text_en'] ?? 'text_en'} ?? null,
+                'source' => $this->formatCollectionName((string) $source),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** @return array<int|string, array{type: string, title: string, arabic: string|null, translation: string|null, source: string|null}> */
+    private function hydrateVerseMap(Request $request, array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+        $locale = $this->getPreferredLocale($request);
+        $verses = QuranVerse::whereIn('id', $itemIds)->with(['verseTexts' => fn ($q) => $q->forActiveLanguages()->with('translation.language')])->get()->keyBy('id');
+        $out = [];
+        foreach ($itemIds as $id) {
+            $verse = $verses->get($id);
+            if (! $verse) {
+                continue;
+            }
+            $ref = "{$verse->surah_number}:{$verse->ayah_number}";
+            $textAr = null;
+            $textEn = null;
+            foreach ($verse->verseTexts ?? [] as $vt) {
+                $code = $vt->translation->language->code ?? '';
+                if ($code === 'ar') {
+                    $textAr = $vt->text ?? $vt->text_normalized ?? null;
+                }
+                if ($code === 'en' || $code === 'eng') {
+                    $textEn = $vt->text ?? $vt->text_normalized ?? null;
+                }
+            }
+            $out[$id] = [
+                'type' => 'verse',
+                'title' => SurahHelper::getName($verse->surah_number).' '.$ref,
+                'arabic' => $textAr,
+                'translation' => $locale === 'ar' ? $textAr : $textEn,
+                'source' => SurahHelper::getName($verse->surah_number),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** @return array<int|string, array{type: string, title: string, arabic: string|null, translation: string|null, source: string|null}> */
+    private function hydrateDuaMap(Request $request, array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+        $locale = $this->getPreferredLocale($request);
+        $duas = Dua::where('is_active', true)->whereIn('id', $itemIds)->with('categories')->get()->keyBy('id');
+        $out = [];
+        foreach ($itemIds as $id) {
+            $dua = $duas->get($id);
+            if (! $dua) {
+                continue;
+            }
+            $title = $this->formatDuaKey($dua->dua_key ?? '');
+            $out[$id] = [
+                'type' => 'dua',
+                'title' => $title,
+                'arabic' => $dua->getTranslation('text', 'ar'),
+                'translation' => $dua->getTranslation('text', $locale),
+                'source' => $dua->source ?? null,
+            ];
+        }
+
+        return $out;
+    }
+
+    /** @return array<int|string, array{type: string, title: string, arabic: string|null, translation: string|null, source: string|null}> */
+    private function hydrateAdhkarMap(Request $request, array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+        $locale = $this->getPreferredLocale($request);
+        $adhkarModels = Adhkar::active()->with('category')->whereIn('id', $itemIds)->get()->keyBy('id');
+        $out = [];
+        foreach ($itemIds as $id) {
+            $adhkar = $adhkarModels->get($id);
+            if (! $adhkar) {
+                continue;
+            }
+            $arr = $adhkar->toApiArray($locale);
+            $content = $arr['content'] ?? [];
+            $text = $content['text'] ?? [];
+            $title = $arr['category']['name'] ?? 'Dhikr';
+            $out[$id] = [
+                'type' => 'adhkar',
+                'title' => is_string($title) ? $title : 'Dhikr',
+                'arabic' => $text['ar'] ?? null,
+                'translation' => $text['en'] ?? $text['ar'] ?? null,
+                'source' => $arr['source'] ?? null,
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -167,7 +345,7 @@ class SavedItemController extends Controller
         $items = [];
         foreach ($hadithIds as $hid) {
             $row = $rows->get($hid);
-            if (!$row) {
+            if (! $row) {
                 continue;
             }
             $source = $row->{$collectionCol} ?? '';
@@ -222,6 +400,7 @@ class SavedItemController extends Controller
         $first = trim(explode(',', $header)[0] ?? 'en');
         $lang = trim(explode(';', $first)[0] ?? 'en');
         $locale = strlen($lang) >= 2 ? strtolower(substr($lang, 0, 2)) : 'en';
+
         return in_array($locale, ['en', 'ar'], true) ? $locale : 'en';
     }
 
@@ -233,6 +412,7 @@ class SavedItemController extends Controller
         if ($key === '') {
             return 'Dua';
         }
+
         return ucwords(str_replace(['-', '_'], ' ', $key));
     }
 
@@ -254,6 +434,7 @@ class SavedItemController extends Controller
             'malik' => 'Muwatta Malik',
             'ahmad' => 'Musnad Ahmad',
         ];
+
         return $names[strtolower($source)] ?? ucfirst($source);
     }
 
@@ -302,7 +483,7 @@ class SavedItemController extends Controller
         $items = [];
         foreach ($verseIds as $vid) {
             $verse = $verses->get($vid);
-            if (!$verse) {
+            if (! $verse) {
                 continue;
             }
             $textAr = null;
@@ -388,7 +569,7 @@ class SavedItemController extends Controller
         $items = [];
         foreach ($adhkarIds as $aid) {
             $adhkar = $adhkarModels->get($aid);
-            if (!$adhkar) {
+            if (! $adhkar) {
                 continue;
             }
             $items[] = array_merge($adhkar->toApiArray($locale), ['is_saved' => true]);
@@ -451,7 +632,7 @@ class SavedItemController extends Controller
         $items = [];
         foreach ($duaIds as $did) {
             $dua = $duaModels->get($did);
-            if (!$dua) {
+            if (! $dua) {
                 continue;
             }
             $textAr = $dua->getTranslation('text', 'ar');
