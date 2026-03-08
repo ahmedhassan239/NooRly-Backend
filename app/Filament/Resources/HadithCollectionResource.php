@@ -6,10 +6,13 @@ use App\Domain\Hadith\HadithCollection;
 use App\Filament\Resources\HadithCollectionResource\Pages;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class HadithCollectionResource extends Resource
 {
@@ -34,13 +37,20 @@ class HadithCollectionResource extends Resource
                             ->default(0)
                             ->minValue(0),
                         Forms\Components\Select::make('icon')
-                            ->options(ContentScopeResource::getScopeIconOptions())
-                            ->searchable()
-                            ->placeholder('None'),
-                        Forms\Components\ColorPicker::make('color')
-                            ->hex()
+                            ->label('Icon (optional)')
+                            ->placeholder('— No icon —')
+                            ->options(fn (): array => static::iconSearchResults(null))
                             ->nullable()
-                            ->dehydrated(fn ($state) => filled($state)),
+                            ->helperText('Shown on collection cards in the mobile app')
+                            ->rules([
+                                'nullable',
+                                Rule::in(Arr::wrap(array_keys(config('journey_icons', [])))),
+                            ])
+                            ->live(),
+                        Forms\Components\Placeholder::make('icon_preview')
+                            ->label('Preview')
+                            ->content(fn (Get $get): string => static::iconPreviewContent($get('icon')))
+                            ->visible(fn (Get $get): bool => filled($get('icon'))),
                     ])
                     ->columns(2),
                 Forms\Components\Tabs::make('Translations')
@@ -120,6 +130,10 @@ class HadithCollectionResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('display_order')->sortable()->label('#'),
+                Tables\Columns\TextColumn::make('icon')
+                    ->label('Icon')
+                    ->formatStateUsing(fn (?string $state): string => $state ? static::iconPreviewContent($state) : '—')
+                    ->placeholder('—'),
                 Tables\Columns\TextColumn::make('title')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('slug')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
@@ -143,5 +157,41 @@ class HadithCollectionResource extends Resource
             'create' => Pages\CreateHadithCollection::route('/create'),
             'edit' => Pages\EditHadithCollection::route('/{record}/edit'),
         ];
+    }
+
+    public static function iconSearchResults(?string $search): array
+    {
+        $icons = config('journey_icons', []);
+        $opts = collect($icons)->mapWithKeys(fn (array $v, string $k) => [$k => ($v['emoji'] . ' ' . $v['label'])]);
+        if (blank($search)) {
+            return $opts->all();
+        }
+        $q = strtolower($search);
+        return $opts->filter(fn (string $label, string $key) =>
+            str_contains(strtolower($label), $q) || str_contains(strtolower($key), $q)
+        )->all();
+    }
+
+    public static function iconOptionLabel(?string $value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+        $icons = config('journey_icons', []);
+        $entry = $icons[$value] ?? null;
+        return $entry ? (($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $value)) : $value;
+    }
+
+    public static function iconPreviewContent(?string $iconKey): string
+    {
+        if (! $iconKey) {
+            return '—';
+        }
+        $icons = config('journey_icons', []);
+        $entry = $icons[$iconKey] ?? null;
+        if (! $entry) {
+            return '—';
+        }
+        return ($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $iconKey);
     }
 }

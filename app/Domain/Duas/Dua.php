@@ -23,6 +23,7 @@ class Dua extends Model
         'category_key',
         'source',
         'text_ar',
+        'text_ar_normalized',
         'transliteration',
         'text_en',
         'meta',
@@ -32,6 +33,7 @@ class Dua extends Model
     ];
 
     protected $casts = [
+        'meta' => 'array',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'position' => 'integer',

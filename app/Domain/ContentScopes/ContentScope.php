@@ -29,7 +29,6 @@ class ContentScope extends Model
         'key',
         'label',
         'icon_key',
-        'icon_color',
         'model_class',
         'is_active',
         'show_in_library_tabs',

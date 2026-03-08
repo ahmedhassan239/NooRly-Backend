@@ -85,7 +85,7 @@ class LibraryHadithController extends Controller
             ->with('translations')
             ->selectRaw(
                 'library_hadith_collections.id, library_hadith_collections.title, library_hadith_collections.slug, ' .
-                'library_hadith_collections.icon, library_hadith_collections.color, library_hadith_collections.display_order, ' .
+                'library_hadith_collections.icon, library_hadith_collections.display_order, ' .
                 '(SELECT COUNT(*) FROM lib_hadith_collection_item WHERE lib_hadith_collection_item.hadith_collection_id = library_hadith_collections.id) as items_count'
             )
             ->orderBy('display_order')
@@ -96,10 +96,9 @@ class LibraryHadithController extends Controller
                 'title' => $c->getTitle($locale),
                 'slug' => $c->getSlug($locale),
                 'description' => $c->getDescription($locale),
-                'icon' => $c->icon,
-                'color' => $c->color,
                 'display_order' => (int) $c->display_order,
                 'items_count' => (int) $c->items_count,
+                'icon' => filled($c->icon) ? $c->icon : null,
             ]);
 
         return $this->successResponse($collections->toArray(), 'Collections retrieved successfully');
@@ -132,9 +131,8 @@ class LibraryHadithController extends Controller
                 'title' => $c->getTitle($locale),
                 'slug' => $c->getSlug($locale),
                 'description' => $c->getDescription($locale),
-                'icon' => $c->icon,
-                'color' => $c->color,
                 'display_order' => $c->display_order,
+                'icon' => filled($c->icon) ? $c->icon : null,
             ]);
 
         return $this->successResponse($collections->toArray(), 'Collections retrieved successfully');
@@ -163,8 +161,7 @@ class LibraryHadithController extends Controller
                     'title' => $collection->getTitle($locale),
                     'slug' => $collection->getSlug($locale),
                     'description' => $collection->getDescription($locale),
-                    'icon' => $collection->icon,
-                    'color' => $collection->color,
+                    'icon' => filled($collection->icon) ? $collection->icon : null,
                 ],
                 'hadiths' => [],
             ], 'Collection retrieved successfully');
@@ -200,8 +197,7 @@ class LibraryHadithController extends Controller
                 'title' => $collection->getTitle($locale),
                 'slug' => $collection->getSlug($locale),
                 'description' => $collection->getDescription($locale),
-                'icon' => $collection->icon,
-                'color' => $collection->color,
+                'icon' => filled($collection->icon) ? $collection->icon : null,
             ],
             'hadiths' => $hadiths,
         ], 'Collection retrieved successfully');

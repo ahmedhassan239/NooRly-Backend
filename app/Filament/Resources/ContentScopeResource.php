@@ -6,9 +6,11 @@ use App\Domain\ContentScopes\ContentScope;
 use App\Filament\Resources\ContentScopeResource\Pages;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -62,6 +64,22 @@ class ContentScopeResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->helperText('Human-readable name (e.g., "Lessons")'),
+
+                        Forms\Components\Select::make('icon_key')
+                            ->label('Icon')
+                            ->placeholder('— No icon —')
+                            ->options(fn (): array => static::iconSearchResults(null))
+                            ->nullable()
+                            ->helperText('Icon shown in Library tabs')
+                            ->rules([
+                                'nullable',
+                                Rule::in(Arr::wrap(array_keys(config('journey_icons', [])))),
+                            ])
+                            ->live(),
+                        Forms\Components\Placeholder::make('icon_preview')
+                            ->label('Preview')
+                            ->content(fn (Get $get): string => static::iconPreviewContent($get('icon_key')))
+                            ->visible(fn (Get $get): bool => filled($get('icon_key'))),
                         
                         Forms\Components\TextInput::make('model_class')
                             ->label('Model Class')
@@ -100,25 +118,6 @@ class ContentScopeResource extends Resource
                             ->helperText('Optional. If set, scope is only shown when config("features.{key}") is true.'),
                     ])
                     ->columns(2),
-
-                // Icon and color (app display: Library tabs)
-                Forms\Components\Section::make('App display')
-                    ->description('Icon and color shown in the app (e.g. Library tabs).')
-                    ->schema([
-                        Forms\Components\Select::make('icon_key')
-                            ->label('Icon')
-                            ->options(self::getScopeIconOptions())
-                            ->searchable()
-                            ->placeholder('None (default icon)')
-                            ->helperText('Icon key (e.g. book, moon, heart, bookmark).'),
-                        Forms\Components\ColorPicker::make('icon_color')
-                            ->label('Color')
-                            ->hex()
-                            ->nullable()
-                            ->dehydrated(fn ($state) => filled($state))
-                            ->helperText('HEX (e.g. #8B5CF6). Leave empty for theme default.'),
-                    ])
-                    ->columns(2),
             ]);
     }
 
@@ -139,6 +138,10 @@ class ContentScopeResource extends Resource
                     ->label('Label')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('icon_key')
+                    ->label('Icon')
+                    ->formatStateUsing(fn (?string $state): string => $state ? static::iconPreviewContent($state) : '—')
+                    ->placeholder('—'),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean()
@@ -194,33 +197,6 @@ class ContentScopeResource extends Resource
             ->defaultSort('display_order', 'asc');
     }
 
-    /**
-     * Icon options for Library tab display (Lucide-style keys).
-     */
-    public static function getScopeIconOptions(): array
-    {
-        return [
-            'book-open' => 'Book Open',
-            'book-marked' => 'Book Marked',
-            'book' => 'Book',
-            'bookmark' => 'Bookmark',
-            'clipboard-list' => 'Clipboard List',
-            'quote' => 'Quote',
-            'repeat' => 'Repeat',
-            'scroll' => 'Scroll',
-            'moon' => 'Moon',
-            'sun' => 'Sun',
-            'sparkles' => 'Sparkles',
-            'heart' => 'Heart',
-            'star' => 'Star',
-            'home' => 'Home',
-            'compass' => 'Compass',
-            'clock' => 'Clock',
-            'pray' => 'Pray',
-            'dhikr' => 'Dhikr',
-        ];
-    }
-
     public static function getRelations(): array
     {
         return [
@@ -235,5 +211,31 @@ class ContentScopeResource extends Resource
             'create' => Pages\CreateContentScope::route('/create'),
             'edit' => Pages\EditContentScope::route('/{record}/edit'),
         ];
+    }
+
+    public static function iconSearchResults(?string $search): array
+    {
+        $icons = config('journey_icons', []);
+        $opts = collect($icons)->mapWithKeys(fn (array $v, string $k) => [$k => ($v['emoji'] . ' ' . $v['label'])]);
+        if (blank($search)) {
+            return $opts->all();
+        }
+        $q = strtolower($search);
+        return $opts->filter(fn (string $label, string $key) =>
+            str_contains(strtolower($label), $q) || str_contains(strtolower($key), $q)
+        )->all();
+    }
+
+    public static function iconPreviewContent(?string $iconKey): string
+    {
+        if (! $iconKey) {
+            return '—';
+        }
+        $icons = config('journey_icons', []);
+        $entry = $icons[$iconKey] ?? null;
+        if (! $entry) {
+            return '—';
+        }
+        return ($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $iconKey);
     }
 }

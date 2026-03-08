@@ -10,11 +10,14 @@ use App\Filament\Resources\CategoryResource\Pages;
 use App\Rules\UniqueTranslatedSlug;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CategoryResource extends Resource
 {
@@ -84,22 +87,24 @@ class CategoryResource extends Resource
                             }),
                     ]),
 
-                // Icon (for app display: Library Duas/Hadith/Verses/Adhkar category cards)
+                // Icon selection
                 Forms\Components\Section::make('Icon')
-                    ->description('Icon shown on category cards in the app (e.g. Library > Duas).')
                     ->schema([
                         Forms\Components\Select::make('icon_key')
-                            ->label('Icon')
-                            ->options(self::getCategoryIconOptions())
-                            ->searchable()
-                            ->placeholder('None (default icon)')
-                            ->helperText('Lucide/Material style key (e.g. moon, book, bed).'),
-                        Forms\Components\ColorPicker::make('icon_color')
-                            ->label('Icon color (optional)')
-                            ->hex()
+                            ->label('Icon (optional)')
+                            ->placeholder('— No icon —')
+                            ->options(fn (): array => static::iconSearchResults(null))
                             ->nullable()
-                            ->dehydrated(fn ($state) => filled($state))
-                            ->helperText('Click the preview circle to open the palette. Saved as HEX (e.g. #F59E0B). Leave empty for default.'),
+                            ->helperText('Shown on category cards in the mobile app')
+                            ->rules([
+                                'nullable',
+                                Rule::in(Arr::wrap(array_keys(config('journey_icons', [])))),
+                            ])
+                            ->live(),
+                        Forms\Components\Placeholder::make('icon_preview')
+                            ->label('Preview')
+                            ->content(fn (Get $get): string => static::iconPreviewContent($get('icon_key')))
+                            ->visible(fn (Get $get): bool => filled($get('icon_key'))),
                     ])
                     ->columns(2),
 
@@ -237,6 +242,10 @@ class CategoryResource extends Resource
                         });
                     })
                     ->weight('bold'),
+                Tables\Columns\TextColumn::make('icon_key')
+                    ->label('Icon')
+                    ->formatStateUsing(fn (?string $state): string => $state ? static::iconPreviewContent($state) : '—')
+                    ->placeholder('—'),
                 Tables\Columns\TextColumn::make('slug')
                     ->label('Slug')
                     ->getStateUsing(function (Category $record): string {
@@ -303,6 +312,42 @@ class CategoryResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function iconSearchResults(?string $search): array
+    {
+        $icons = config('journey_icons', []);
+        $opts = collect($icons)->mapWithKeys(fn (array $v, string $k) => [$k => ($v['emoji'] . ' ' . $v['label'])]);
+        if (blank($search)) {
+            return $opts->all();
+        }
+        $q = strtolower($search);
+        return $opts->filter(fn (string $label, string $key) =>
+            str_contains(strtolower($label), $q) || str_contains(strtolower($key), $q)
+        )->all();
+    }
+
+    public static function iconOptionLabel(?string $value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+        $icons = config('journey_icons', []);
+        $entry = $icons[$value] ?? null;
+        return $entry ? (($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $value)) : $value;
+    }
+
+    public static function iconPreviewContent(?string $iconKey): string
+    {
+        if (! $iconKey) {
+            return '—';
+        }
+        $icons = config('journey_icons', []);
+        $entry = $icons[$iconKey] ?? null;
+        if (! $entry) {
+            return '—';
+        }
+        return ($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $iconKey);
     }
 
     public static function getPages(): array

@@ -16,8 +16,8 @@ class ContentScopeController extends Controller
 
     /**
      * List content scopes.
-     * - context=library_tabs: only active + show_in_library_tabs, ordered by display_order, returns key, label, icon, color, display_order.
-     * - otherwise: all active scopes (cached), feature_flag applied, key, label, icon, color.
+     * - context=library_tabs: only active + show_in_library_tabs, ordered by display_order, returns key, label, icon, display_order.
+     * - otherwise: all active scopes (cached), feature_flag applied, key, label, icon.
      */
     public function index(Request $request): JsonResponse
     {
@@ -46,11 +46,6 @@ class ContentScopeController extends Controller
                 'key' => $scope->key,
                 'label' => $scope->label,
                 'icon' => $scope->icon_key,
-                'color' => $scope->icon_color,
-                'icon_key' => $scope->icon_key,
-                'icon_color' => $scope->icon_color,
-                'iconKey' => $scope->icon_key,
-                'iconColor' => $scope->icon_color,
             ];
         });
 
@@ -59,7 +54,7 @@ class ContentScopeController extends Controller
 
     /**
      * Library tabs: active + show_in_library_tabs only, order by display_order.
-     * Returns: key, label, icon, color, display_order.
+     * Returns: key, label, icon, display_order.
      */
     private function libraryTabs(Request $request): JsonResponse
     {
@@ -74,7 +69,6 @@ class ContentScopeController extends Controller
                     'key' => $scope->key,
                     'label' => $scope->label,
                     'icon' => $scope->icon_key,
-                    'color' => $scope->icon_color,
                     'display_order' => (int) $scope->display_order,
                 ];
             });

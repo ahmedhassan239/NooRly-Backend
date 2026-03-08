@@ -85,9 +85,8 @@ class LibraryVersesController extends Controller
                 'title' => $c->getTitle($locale),
                 'slug' => $c->getSlug($locale),
                 'description' => $c->getDescription($locale),
-                'icon' => $c->icon,
-                'color' => $c->color,
                 'display_order' => $c->display_order,
+                'icon' => filled($c->icon) ? $c->icon : null,
             ]);
 
         return $this->successResponse($collections->toArray(), 'Collections retrieved successfully');
@@ -104,7 +103,7 @@ class LibraryVersesController extends Controller
             ->with('translations')
             ->selectRaw(
                 'verse_collections.id, verse_collections.title, verse_collections.slug, ' .
-                'verse_collections.icon, verse_collections.color, verse_collections.display_order, ' .
+                'verse_collections.icon, verse_collections.display_order, ' .
                 '(SELECT COUNT(*) FROM verse_collection_ayah WHERE verse_collection_ayah.verse_collection_id = verse_collections.id) as items_count'
             )
             ->orderBy('display_order')
@@ -115,10 +114,9 @@ class LibraryVersesController extends Controller
                 'title' => $c->getTitle($locale),
                 'slug' => $c->getSlug($locale),
                 'description' => $c->getDescription($locale),
-                'icon' => $c->icon,
-                'color' => $c->color,
                 'display_order' => (int) $c->display_order,
                 'items_count' => (int) ($c->items_count ?? 0),
+                'icon' => filled($c->icon) ? $c->icon : null,
             ]);
 
         return $this->successResponse($collections->toArray(), 'Collections retrieved successfully');
@@ -144,8 +142,7 @@ class LibraryVersesController extends Controller
                     'title' => $collection->getTitle($locale),
                     'slug' => $collection->getSlug($locale),
                     'description' => $collection->getDescription($locale),
-                    'icon' => $collection->icon,
-                    'color' => $collection->color,
+                    'icon' => filled($collection->icon) ? $collection->icon : null,
                 ],
                 'verses' => [],
             ], 'Collection retrieved successfully');
@@ -194,8 +191,7 @@ class LibraryVersesController extends Controller
                 'title' => $collection->getTitle($locale),
                 'slug' => $collection->getSlug($locale),
                 'description' => $collection->getDescription($locale),
-                'icon' => $collection->icon,
-                'color' => $collection->color,
+                'icon' => filled($collection->icon) ? $collection->icon : null,
             ],
             'verses' => $ordered,
         ], 'Collection retrieved successfully');

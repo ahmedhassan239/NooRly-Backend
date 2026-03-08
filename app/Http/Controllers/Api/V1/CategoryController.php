@@ -26,7 +26,7 @@ class CategoryController extends Controller
      * Query parameters:
      * - scope: Scope key (adhkar, duas, hadith, verses, lesson) - required for filtering
      *
-     * When scope=adhkar, response includes icon_key, icon_color, items_count (adhkar count).
+     * When scope=adhkar, response includes items_count (adhkar count).
      */
     public function index(Request $request): JsonResponse
     {
@@ -59,8 +59,7 @@ class CategoryController extends Controller
                 'name' => $category->getName($locale),
                 'slug' => $category->getSlug($locale),
                 'description' => $category->getDescription($locale),
-                'icon_key' => $category->icon_key,
-                'icon_color' => $category->icon_color,
+                'icon' => filled($category->icon_key) ? $category->icon_key : null,
                 'translations' => $category->translations->map(function ($translation) {
                     return [
                         'language_code' => $translation->language_code,
@@ -113,8 +112,7 @@ class CategoryController extends Controller
             'name' => $category->getName($locale),
             'slug' => $category->getSlug($locale),
             'description' => $category->getDescription($locale),
-            'icon_key' => $category->icon_key,
-            'icon_color' => $category->icon_color,
+            'icon' => filled($category->icon_key) ? $category->icon_key : null,
             'translations' => $category->translations->map(function ($translation) {
                 return [
                     'language_code' => $translation->language_code,
