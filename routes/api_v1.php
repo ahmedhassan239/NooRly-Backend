@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\V1\OnboardingController;
 use App\Http\Controllers\Api\V1\OnboardingProfileController;
 use App\Http\Controllers\Api\V1\PrayerTimeController;
 use App\Http\Controllers\Api\V1\QuranController;
+use App\Http\Controllers\Api\V1\RamadanGuideController;
+use App\Http\Controllers\Api\V1\HelpNowController;
 use App\Http\Controllers\Api\V1\SavedItemController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SystemController;
@@ -149,6 +151,22 @@ Route::prefix('v1')->group(function () {
         Route::get('/collections', [LibraryVersesController::class, 'collections']);
         Route::get('/collections/{id}', [LibraryVersesController::class, 'collection']);
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ramadan Guide (Public)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/ramadan-guide', [RamadanGuideController::class, 'index']);
+    Route::get('/ramadan-guide/{slug}', [RamadanGuideController::class, 'show']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Help Now (Public) - categorized support content
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/help-now', [HelpNowController::class, 'index']);
+    Route::get('/help-now/items/{slug}', [HelpNowController::class, 'showItem']);
 
     /*
     |--------------------------------------------------------------------------

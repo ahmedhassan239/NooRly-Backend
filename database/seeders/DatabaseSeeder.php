@@ -27,6 +27,8 @@ class DatabaseSeeder extends Seeder
             UserProgressSeeder::class,
             QuranSeeder::class,
             HadithSeeder::class,
+            RamadanGuideSeeder::class,
+            HelpNowSeeder::class,
         ]);
     }
 }
