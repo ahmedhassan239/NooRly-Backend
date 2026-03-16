@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\LibraryHadithController;
 use App\Http\Controllers\Api\V1\LibraryVersesController;
 use App\Http\Controllers\Api\V1\OnboardingController;
+use App\Http\Controllers\Api\V1\OnboardingProfileController;
 use App\Http\Controllers\Api\V1\PrayerTimeController;
 use App\Http\Controllers\Api\V1\QuranController;
 use App\Http\Controllers\Api\V1\SavedItemController;
@@ -189,6 +190,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/me/onboarding', [OnboardingController::class, 'show']);
         Route::put('/me/onboarding', [OnboardingController::class, 'update']);
+
+        Route::get('/me/onboarding-profile', [OnboardingProfileController::class, 'show']);
+        Route::put('/me/onboarding-profile', [OnboardingProfileController::class, 'update']);
 
         Route::get('/me/settings', [SettingsController::class, 'show']);
         Route::put('/me/settings', [SettingsController::class, 'update']);

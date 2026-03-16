@@ -53,6 +53,11 @@ class AppUser extends Authenticatable
         return $this->hasOne(\App\Domain\Users\AppUserOnboarding::class, 'app_user_id');
     }
 
+    public function onboardingProfile()
+    {
+        return $this->hasOne(\App\Domain\Users\UserOnboardingProfile::class, 'app_user_id');
+    }
+
     public function settings()
     {
         return $this->hasOne(\App\Domain\Users\AppUserSettings::class, 'app_user_id');

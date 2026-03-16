@@ -8,6 +8,7 @@ use App\Domain\Auth\Enums\MainGoal;
 use App\Domain\Auth\Enums\RegistrationMethod;
 use App\Domain\Auth\Enums\UserStatus;
 use App\Filament\Resources\AppUserResource\Pages;
+use App\Support\OnboardingProfileLabels;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Infolists;
@@ -260,6 +261,66 @@ class AppUserResource extends Resource
                             ->bulleted(),
                     ])
                     ->columns(3),
+                Infolists\Components\Section::make('Your Journey')
+                    ->description('Saved onboarding preferences and goals')
+                    ->icon('heroicon-o-map')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('onboardingProfile.display_name')
+                            ->label('Name')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.embrace_islam_range')
+                            ->label('When you embraced Islam')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::embraceIslam($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.arabic_level')
+                            ->label('Arabic reading')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::arabicLevel($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.prayer_level')
+                            ->label('Prayer')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::prayerLevel($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.quran_reading_level')
+                            ->label('Quran reading')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::quranLevel($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.goals')
+                            ->label('Your Goals')
+                            ->formatStateUsing(fn ($state): string => OnboardingProfileLabels::goals(is_array($state) ? $state : null))
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.challenges')
+                            ->label('Your Challenges')
+                            ->formatStateUsing(fn ($state): string => OnboardingProfileLabels::challenges(is_array($state) ? $state : null))
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.daily_time')
+                            ->label('Daily time')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::dailyTime($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.preferred_learning_time')
+                            ->label('Best time to learn')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::learningTime($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.learning_style')
+                            ->label('Learning style')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::learningStyle($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.reminder_preference')
+                            ->label('Reminders')
+                            ->formatStateUsing(fn (?string $state): string => OnboardingProfileLabels::reminder($state) ?? '—')
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.islam_date')
+                            ->label('Islam date')
+                            ->date()
+                            ->placeholder('—'),
+                        Infolists\Components\TextEntry::make('onboardingProfile.onboarding_completed_at')
+                            ->label('Onboarding completed at')
+                            ->dateTime()
+                            ->placeholder('—')
+                            ->visible(fn ($record) => $record?->onboardingProfile?->onboarding_completed_at !== null),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+
                 Infolists\Components\Section::make('App Usage')
                     ->schema([
                         Infolists\Components\Group::make([
