@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\V1\OnboardingController;
 use App\Http\Controllers\Api\V1\OnboardingProfileController;
 use App\Http\Controllers\Api\V1\PrayerTimeController;
 use App\Http\Controllers\Api\V1\QuranController;
+use App\Http\Controllers\Api\V1\NotificationLogController;
+use App\Http\Controllers\Api\V1\NotificationPreferenceController;
 use App\Http\Controllers\Api\V1\RamadanGuideController;
 use App\Http\Controllers\Api\V1\HelpNowController;
 use App\Http\Controllers\Api\V1\SavedItemController;
@@ -236,6 +238,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}', [LessonController::class, 'show']);
             Route::post('/{id}/complete', [LessonController::class, 'complete']);
             Route::put('/{id}/reflection', [LessonController::class, 'reflection']);
+        });
+
+        // Notification Preferences
+        Route::prefix('notifications')->group(function () {
+            Route::get('/preferences', [NotificationPreferenceController::class, 'show']);
+            Route::put('/preferences', [NotificationPreferenceController::class, 'update']);
+            Route::post('/log/{id}/opened', [NotificationLogController::class, 'markOpened']);
         });
     });
 

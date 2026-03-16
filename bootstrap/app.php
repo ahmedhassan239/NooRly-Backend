@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,16 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetRequestLanguage::class,
             \App\Http\Middleware\UpdateLastActiveMiddleware::class,
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        // Check user journey progress and generate milestone notifications
+        $schedule->command('notifications:milestones')->dailyAt('02:00');
+
+        // Generate occasion notifications (Friday reminder, Ramadan, Eid)
+        $schedule->command('notifications:occasions')->dailyAt('03:00');
+
+        // Detect inactive users (3/7 days) and generate support notifications
+        $schedule->command('notifications:inactive')->dailyAt('04:00');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
