@@ -18,12 +18,24 @@ class JourneyController extends Controller
     ) {}
 
     /**
+     * Resolve locale: request attribute (from SetRequestLanguage), then query ?lang=, then app locale.
+     */
+    private function resolveLocale(Request $request): string
+    {
+        $locale = $request->attributes->get('lang')
+            ?? $request->query('lang')
+            ?? app()->getLocale();
+
+        return in_array($locale, ['ar', 'en'], true) ? $locale : 'en';
+    }
+
+    /**
      * GET /api/v1/journey - UI-ready journey with weeks and lessons.
      */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $locale = $request->get('lang', app()->getLocale());
+        $locale = $this->resolveLocale($request);
 
         $data = $this->journeyService->getJourneyForUser($user, $locale);
 
@@ -36,7 +48,7 @@ class JourneyController extends Controller
     public function week(Request $request, int $week): JsonResponse
     {
         $user = $request->user();
-        $locale = $request->get('lang', app()->getLocale());
+        $locale = $this->resolveLocale($request);
 
         $data = $this->journeyService->getWeekLessons($week, $user, $locale);
 
@@ -55,7 +67,7 @@ class JourneyController extends Controller
     {
         try {
             $user = $request->user();
-            $locale = $request->get('lang', app()->getLocale());
+            $locale = $this->resolveLocale($request);
 
             $data = $this->journeyService->getSummaryForUser($user, $locale);
 
@@ -65,12 +77,12 @@ class JourneyController extends Controller
 
             $default = [
                 'day_index' => 1,
-                'total_days' => 90,
+                'total_days' => 60,
                 'streak_days' => 0,
                 'active_weeks' => 0,
-                'left_days' => 89,
+                'left_days' => 59,
                 'completed_lessons' => 0,
-                'total_lessons' => 90,
+                'total_lessons' => 60,
                 'completion_percent' => 0.0,
                 'milestones' => [],
                 'current_lesson' => null,

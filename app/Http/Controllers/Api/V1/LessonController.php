@@ -75,7 +75,10 @@ class LessonController extends Controller
     {
         try {
             $user = $request->user();
-            $locale = $request->get('lang', app()->getLocale());
+            $locale = $request->attributes->get('lang')
+                ?? $request->query('lang')
+                ?? app()->getLocale();
+            $locale = in_array($locale, ['ar', 'en'], true) ? $locale : 'en';
 
             $data = $this->journeyService->getCurrentLessonForUser($user, $locale);
 

@@ -222,6 +222,35 @@ class LessonService
     }
 
     /**
+     * Get all reflections for a user, newest first, with lesson title when available.
+     *
+     * @return array<int, array{id: int, lesson_id: string, reflection_text: string, lesson_title: string|null, lesson_day: int|null, created_at: string, updated_at: string}>
+     */
+    public function getReflectionsForUser(AppUser $user, string $locale = 'en'): array
+    {
+        $reflections = LessonReflection::where('app_user_id', $user->id)
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $out = [];
+        foreach ($reflections as $r) {
+            $lesson = $this->findByIdForApi($r->lesson_id, $locale);
+            $out[] = [
+                'id' => $r->id,
+                'lesson_id' => $r->lesson_id,
+                'reflection_text' => $r->reflection_text,
+                'lesson_title' => $lesson['title'] ?? null,
+                'lesson_day' => isset($lesson['day_number']) ? (int) $lesson['day_number'] : null,
+                'week_number' => isset($lesson['week_number']) ? (int) $lesson['week_number'] : null,
+                'created_at' => $r->created_at->toIso8601String(),
+                'updated_at' => $r->updated_at->toIso8601String(),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Get progress metrics for a user.
      */
     public function getProgress(AppUser $user): array

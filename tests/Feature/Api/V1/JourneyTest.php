@@ -50,7 +50,7 @@ class JourneyTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/v1/journey');
 
         $response->assertOk()
-            ->assertJsonPath('data.plan.title', '90-Day Learning Path')
+            ->assertJsonPath('data.plan.title', '60-Day Learning Path')
             ->assertJsonPath('data.overall.total_days', 2)
             ->assertJsonPath('data.overall.done_days', 0)
             ->assertJsonCount(1, 'data.weeks')

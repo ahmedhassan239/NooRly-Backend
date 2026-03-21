@@ -19,6 +19,10 @@ use App\Http\Controllers\Api\V1\OnboardingController;
 use App\Http\Controllers\Api\V1\OnboardingProfileController;
 use App\Http\Controllers\Api\V1\PrayerTimeController;
 use App\Http\Controllers\Api\V1\QuranController;
+use App\Http\Controllers\Api\V1\ReflectionController;
+use App\Http\Controllers\Api\V1\Admin\NotificationCampaignController;
+use App\Http\Controllers\Api\V1\NotificationDeviceTokenController;
+use App\Http\Controllers\Api\V1\NotificationInboxController;
 use App\Http\Controllers\Api\V1\NotificationLogController;
 use App\Http\Controllers\Api\V1\NotificationPreferenceController;
 use App\Http\Controllers\Api\V1\RamadanGuideController;
@@ -217,6 +221,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/me/settings', [SettingsController::class, 'show']);
         Route::put('/me/settings', [SettingsController::class, 'update']);
 
+        // Saved reflections (lesson reflections list)
+        Route::get('/reflections', [ReflectionController::class, 'index']);
+
         // Saved Items
         Route::get('/saved', [SavedItemController::class, 'index']);
         Route::post('/saved/{type}/{itemId}', [SavedItemController::class, 'store']);
@@ -245,7 +252,20 @@ Route::prefix('v1')->group(function () {
             Route::get('/preferences', [NotificationPreferenceController::class, 'show']);
             Route::put('/preferences', [NotificationPreferenceController::class, 'update']);
             Route::post('/log/{id}/opened', [NotificationLogController::class, 'markOpened']);
+            Route::get('/inbox', [NotificationInboxController::class, 'index']);
+            Route::patch('/inbox/{id}/read', [NotificationInboxController::class, 'markRead']);
+            Route::post('/device-token', [NotificationDeviceTokenController::class, 'store']);
         });
+    });
+
+    // Admin: manual notification campaigns (AppUser IDs in NOORLY_CAMPAIGN_ADMIN_APP_USER_IDS)
+    Route::prefix('admin/notification-campaigns')->middleware(['auth:sanctum', 'campaign.admin'])->group(function () {
+        Route::get('/', [NotificationCampaignController::class, 'index']);
+        Route::post('/', [NotificationCampaignController::class, 'store']);
+        Route::get('/{id}', [NotificationCampaignController::class, 'show']);
+        Route::post('/{id}/send', [NotificationCampaignController::class, 'send']);
+        Route::post('/{id}/cancel', [NotificationCampaignController::class, 'cancel']);
+        Route::get('/{id}/deliveries', [NotificationCampaignController::class, 'deliveries']);
     });
 
     // Admin / Management (Quran All Languages)

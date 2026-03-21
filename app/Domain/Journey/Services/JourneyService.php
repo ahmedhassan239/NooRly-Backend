@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 
 class JourneyService
 {
-    private const PLAN_TITLE = '90-Day Learning Path';
+    private const PLAN_TITLE = '60-Day Learning Path';
 
     /**
      * Get journey data for the authenticated user (UI-ready).
@@ -226,7 +226,7 @@ class JourneyService
         return null;
     }
 
-    private const TOTAL_DAYS = 90;
+    private const TOTAL_DAYS = 60;
 
     /**
      * Get journey profile summary for the authenticated user.

@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'verified.email' => \App\Http\Middleware\EnsureEmailVerified::class,
+            'campaign.admin' => \App\Http\Middleware\EnsureCampaignAdminAppUser::class,
         ]);
         
         $middleware->api(prepend: [
@@ -31,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Detect inactive users (3/7 days) and generate support notifications
         $schedule->command('notifications:inactive')->dailyAt('04:00');
+
+        // Admin marketing / manual push campaigns (scheduled send_mode)
+        $schedule->command('notifications:process-scheduled-campaigns')->everyMinute();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

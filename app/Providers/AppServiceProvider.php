@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Domain\Notifications\Campaigns\NotificationCampaignService;
+use App\Domain\Notifications\Push\PushProviderFactory;
+use App\Domain\Notifications\Push\PushProviderInterface;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +15,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(PushProviderInterface::class, static fn () => PushProviderFactory::make());
+
+        $this->app->singleton(NotificationCampaignService::class, function ($app) {
+            return new NotificationCampaignService(
+                $app->make(\App\Domain\Notifications\Campaigns\NotificationAudienceResolver::class),
+                $app->make(\App\Domain\Notifications\Campaigns\NotificationLocalizedContentResolver::class),
+                $app->make(PushProviderInterface::class),
+            );
+        });
     }
 
     /**
