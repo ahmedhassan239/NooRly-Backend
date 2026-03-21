@@ -19,11 +19,15 @@ class NotificationCampaignDelivery extends Model
         'failure_reason',
         'sent_at',
         'opened_at',
+        'shown_locally_at',
+        'read_at',
     ];
 
     protected $casts = [
         'sent_at' => 'datetime',
         'opened_at' => 'datetime',
+        'shown_locally_at' => 'datetime',
+        'read_at' => 'datetime',
     ];
 
     public function campaign(): BelongsTo

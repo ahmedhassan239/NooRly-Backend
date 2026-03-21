@@ -103,6 +103,7 @@ class NotificationCampaignResource extends Resource
                 Tables\Columns\TextColumn::make('sent_count')->numeric()->sortable(),
                 Tables\Columns\TextColumn::make('failed_count')->numeric()->sortable(),
                 Tables\Columns\TextColumn::make('skipped_count')->numeric()->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('pending_app_pull_count')->label('App pull')->numeric()->toggleable(),
                 Tables\Columns\TextColumn::make('creator.name')->label('Created by')->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
             ])
@@ -158,6 +159,7 @@ class NotificationCampaignResource extends Resource
                         Infolists\Components\TextEntry::make('sent_count'),
                         Infolists\Components\TextEntry::make('failed_count'),
                         Infolists\Components\TextEntry::make('skipped_count'),
+                        Infolists\Components\TextEntry::make('pending_app_pull_count')->label('Pending app pull'),
                         Infolists\Components\TextEntry::make('creator.name')->label('Created by'),
                         Infolists\Components\TextEntry::make('created_at')->dateTime(),
                     ])->columns(2),

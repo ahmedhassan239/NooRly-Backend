@@ -27,6 +27,7 @@ class NotificationCampaign extends Model
         'sent_count',
         'failed_count',
         'skipped_count',
+        'pending_app_pull_count',
         'processed_at',
     ];
 

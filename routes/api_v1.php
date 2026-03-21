@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\SavedItemController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\SystemController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\UserPendingNotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -211,6 +212,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'verified.email'])->group(function () {
         Route::get('/me', [UserController::class, 'me']);
         Route::put('/me/profile', [UserController::class, 'updateProfile']);
+
+        // Admin campaigns: app-pull pipeline (local notifications on device; not background push)
+        Route::get('/user/pending-notifications', [UserPendingNotificationController::class, 'index']);
+        Route::post('/user/pending-notifications/{id}/mark-shown', [UserPendingNotificationController::class, 'markShown']);
+        Route::post('/user/pending-notifications/{id}/mark-read', [UserPendingNotificationController::class, 'markRead']);
 
         Route::get('/me/onboarding', [OnboardingController::class, 'show']);
         Route::put('/me/onboarding', [OnboardingController::class, 'update']);

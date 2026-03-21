@@ -86,6 +86,18 @@ final class NotificationCampaignService
             $sent = 0;
             $failed = 0;
             $skipped = 0;
+            $pendingPull = 0;
+
+            $terminalDeliveryStatuses = [
+                'sent',
+                'failed',
+                'skipped',
+                'pending_for_app_pull',
+                'shown_locally',
+                'read',
+                'expired',
+                'provider_unavailable',
+            ];
 
             foreach ($users as $user) {
                 $user->loadMissing('settings');
@@ -98,7 +110,7 @@ final class NotificationCampaignService
                     ['delivery_status' => 'pending']
                 );
 
-                if (in_array($delivery->delivery_status, ['sent', 'provider_unavailable', 'failed', 'skipped'], true)) {
+                if (in_array($delivery->delivery_status, $terminalDeliveryStatuses, true)) {
                     continue;
                 }
 
@@ -145,20 +157,26 @@ final class NotificationCampaignService
                         'sent_at' => now(),
                     ]);
                     $sent++;
-                } else {
+                } elseif ($this->pushProvider->isConfigured()) {
                     $reason = $pushResult['error'] ?? 'push_failed';
                     $delivery->update([
-                        'delivery_status' => $this->pushProvider->isConfigured() ? 'failed' : 'provider_unavailable',
+                        'delivery_status' => 'failed',
                         'platform' => $token?->platform,
                         'provider' => $this->pushProvider->name(),
                         'failure_reason' => $reason,
                         'sent_at' => null,
                     ]);
-                    if ($delivery->delivery_status === 'failed') {
-                        $failed++;
-                    } else {
-                        $failed++;
-                    }
+                    $failed++;
+                } else {
+                    $reason = $pushResult['error'] ?? 'awaiting_app_pull';
+                    $delivery->update([
+                        'delivery_status' => 'pending_for_app_pull',
+                        'platform' => $token?->platform,
+                        'provider' => $this->pushProvider->name(),
+                        'failure_reason' => $reason,
+                        'sent_at' => null,
+                    ]);
+                    $pendingPull++;
                 }
 
                 NotificationInbox::query()->firstOrCreate(
@@ -177,14 +195,14 @@ final class NotificationCampaignService
             }
 
             $finalStatus = 'sent';
-            if ($sent === 0 && $failed === 0 && $skipped > 0) {
-                $finalStatus = 'partial';
-            } elseif ($sent > 0 && $failed + $skipped > 0) {
-                $finalStatus = 'partial';
-            } elseif ($sent === 0 && $failed > 0) {
+            if ($failed > 0) {
+                $finalStatus = ($sent > 0 || $pendingPull > 0 || $skipped > 0) ? 'partial' : 'failed';
+            } elseif ($sent === 0 && $pendingPull === 0 && $skipped === 0) {
                 $finalStatus = 'failed';
-            } elseif ($sent === 0 && $failed === 0 && $skipped === 0) {
-                $finalStatus = 'failed';
+            } elseif ($skipped > 0 && ($sent > 0 || $pendingPull > 0)) {
+                $finalStatus = 'partial';
+            } elseif ($sent === 0 && $pendingPull === 0 && $skipped > 0) {
+                $finalStatus = 'partial';
             }
 
             $campaign->update([
@@ -192,6 +210,7 @@ final class NotificationCampaignService
                 'sent_count' => $sent,
                 'failed_count' => $failed,
                 'skipped_count' => $skipped,
+                'pending_app_pull_count' => $pendingPull,
                 'processed_at' => now(),
             ]);
 
@@ -200,6 +219,7 @@ final class NotificationCampaignService
                 'sent' => $sent,
                 'failed' => $failed,
                 'skipped' => $skipped,
+                'pending_app_pull' => $pendingPull,
                 'status' => $finalStatus,
             ]);
         });
