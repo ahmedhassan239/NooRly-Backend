@@ -5,14 +5,13 @@ namespace App\Filament\Resources;
 use App\Domain\Journey\JourneyWeek;
 use App\Filament\Concerns\HasTranslatableTabs;
 use App\Filament\Resources\JourneyWeekResource\Pages;
+use App\Filament\Support\PublicIconSelect;
+use App\Support\Icons\PublicIconsRegistry;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Arr;
-use Illuminate\Validation\Rule;
 
 class JourneyWeekResource extends Resource
 {
@@ -40,22 +39,9 @@ class JourneyWeekResource extends Resource
                             ->minValue(1)
                             ->unique(ignoreRecord: true)
                             ->label('Week number'),
-                        Forms\Components\Select::make('icon')
-                            ->label('Icon (optional)')
-                            ->placeholder('Select an icon')
-                            ->options(fn () => collect(config('journey_icons', []))->mapWithKeys(fn (array $v, string $k) => [$k => ($v['emoji'] . ' ' . $v['label'])])->all())
-                            ->searchable()
-                            ->nullable()
+                        PublicIconSelect::make('icon', 'Icon (optional)', false)
                             ->helperText('Used in the mobile Journey UI')
-                            ->rules([
-                                'nullable',
-                                Rule::in(Arr::wrap(array_keys(config('journey_icons', [])))),
-                            ])
-                            ->live(),
-                        Forms\Components\Placeholder::make('icon_preview')
-                            ->label('Preview')
-                            ->content(fn (Get $get): string => static::iconPreviewContent($get('icon')))
-                            ->visible(fn (Get $get): bool => filled($get('icon'))),
+                            ->columnSpanFull(),
                         Forms\Components\Toggle::make('is_active')
                             ->default(true)
                             ->label('Active'),
@@ -85,10 +71,11 @@ class JourneyWeekResource extends Resource
                     ->numeric()
                     ->sortable()
                     ->label('Week'),
-                Tables\Columns\TextColumn::make('icon')
+                Tables\Columns\ImageColumn::make('icon_thumb')
                     ->label('Icon')
-                    ->formatStateUsing(fn (?string $state): string => $state ? (static::iconPreviewContent($state)) : '—')
-                    ->placeholder('—'),
+                    ->getStateUsing(fn (JourneyWeek $record): ?string => PublicIconsRegistry::expand($record->icon)['icon_url'])
+                    ->checkFileExistence(false)
+                    ->height(28),
                 Tables\Columns\TextColumn::make('title')
                     ->label('Title')
                     ->getStateUsing(fn (JourneyWeek $record) => $record->translations()->where('language_code', 'en')->first()?->title ?? $record->getTitleForLocale('en')),
@@ -121,16 +108,4 @@ class JourneyWeekResource extends Resource
         ];
     }
 
-    public static function iconPreviewContent(?string $iconKey): string
-    {
-        if (! $iconKey) {
-            return '—';
-        }
-        $icons = config('journey_icons', []);
-        $entry = $icons[$iconKey] ?? null;
-        if (! $entry) {
-            return '—';
-        }
-        return ($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $iconKey);
-    }
 }

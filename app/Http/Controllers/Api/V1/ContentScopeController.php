@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\ContentScopes\ContentScope;
 use App\Http\Controllers\Controller;
 use App\Observers\ContentScopeObserver;
+use App\Support\Icons\PublicIconsRegistry;
 use App\Support\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,11 +43,10 @@ class ContentScopeController extends Controller
             }
             return config("features.{$scope->feature_flag}", false) === true;
         })->values()->map(function ($scope) {
-            return [
+            return array_merge([
                 'key' => $scope->key,
                 'label' => $scope->label,
-                'icon' => $scope->icon_key,
-            ];
+            ], PublicIconsRegistry::expand($scope->icon_key));
         });
 
         return $this->successResponse($filtered->toArray(), 'Scopes retrieved successfully');
@@ -65,12 +65,11 @@ class ContentScopeController extends Controller
             ->orderBy('id')
             ->get()
             ->map(function ($scope) {
-                return [
+                return array_merge([
                     'key' => $scope->key,
                     'label' => $scope->label,
-                    'icon' => $scope->icon_key,
                     'display_order' => (int) $scope->display_order,
-                ];
+                ], PublicIconsRegistry::expand($scope->icon_key));
             });
 
         return $this->successResponse($scopes->toArray(), 'Library tabs retrieved successfully');

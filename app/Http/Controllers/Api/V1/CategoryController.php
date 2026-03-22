@@ -6,6 +6,7 @@ use App\Domain\Adhkar\Adhkar;
 use App\Domain\Categories\Models\Category;
 use App\Domain\ContentScopes\ContentScope;
 use App\Http\Controllers\Controller;
+use App\Support\Icons\PublicIconsRegistry;
 use App\Support\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,7 +49,7 @@ class CategoryController extends Controller
         $locale = $this->preferredLocale($request);
 
         $categories = $query->get()->map(function ($category) use ($scopeKey, $locale) {
-            $item = [
+            $item = array_merge([
                 'id' => $category->id,
                 'scope_id' => $category->scope_id,
                 'scope' => $category->scope ? [
@@ -59,7 +60,6 @@ class CategoryController extends Controller
                 'name' => $category->getName($locale),
                 'slug' => $category->getSlug($locale),
                 'description' => $category->getDescription($locale),
-                'icon' => filled($category->icon_key) ? $category->icon_key : null,
                 'translations' => $category->translations->map(function ($translation) {
                     return [
                         'language_code' => $translation->language_code,
@@ -68,7 +68,7 @@ class CategoryController extends Controller
                         'description' => $translation->description,
                     ];
                 }),
-            ];
+            ], PublicIconsRegistry::expand($category->icon_key));
 
             if ($scopeKey === 'adhkar') {
                 $item['items_count'] = Adhkar::where('category_id', $category->id)->active()->count();
@@ -101,7 +101,7 @@ class CategoryController extends Controller
         }
 
         $locale = $this->preferredLocale($request);
-        $data = [
+        $data = array_merge([
             'id' => $category->id,
             'scope_id' => $category->scope_id,
             'scope' => $category->scope ? [
@@ -112,7 +112,6 @@ class CategoryController extends Controller
             'name' => $category->getName($locale),
             'slug' => $category->getSlug($locale),
             'description' => $category->getDescription($locale),
-            'icon' => filled($category->icon_key) ? $category->icon_key : null,
             'translations' => $category->translations->map(function ($translation) {
                 return [
                     'language_code' => $translation->language_code,
@@ -121,7 +120,7 @@ class CategoryController extends Controller
                     'description' => $translation->description,
                 ];
             }),
-        ];
+        ], PublicIconsRegistry::expand($category->icon_key));
 
         return $this->successResponse($data, 'Category retrieved successfully');
     }

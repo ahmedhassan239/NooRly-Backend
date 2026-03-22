@@ -2,6 +2,7 @@
 
 namespace App\Domain\HelpNow;
 
+use App\Support\Icons\PublicIconsRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -62,14 +63,13 @@ class HelpCategory extends Model
             ->get()
             ->map(fn (HelpItem $item) => $item->toApiArray($locale));
 
-        return [
+        return array_merge([
             'id' => $this->id,
             'slug' => $this->slug,
             'title' => $this->getTitleForLocale($locale),
             'description' => $this->getDescriptionForLocale($locale),
-            'icon' => $this->icon,
             'sort_order' => $this->sort_order,
             'items' => $items->values()->all(),
-        ];
+        ], PublicIconsRegistry::expand($this->icon));
     }
 }

@@ -4,6 +4,7 @@ namespace App\Domain\Journey\Services;
 
 use App\Domain\Auth\AppUser;
 use App\Domain\Journey\JourneyWeek;
+use App\Support\Icons\PublicIconsRegistry;
 use App\Domain\Lessons\LessonCompletion;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -99,17 +100,16 @@ class JourneyService
             $totalLessons = $week->journeyWeekLessons->count();
             $doneLessons = $week->journeyWeekLessons->filter(fn ($p) => $completedLessonIds->contains((string) $p->lesson_id))->count();
 
-            return [
+            return array_merge([
                 'id' => $week->id,
                 'week_number' => $week->week_number,
                 'title' => $week->getTitleForLocale($locale),
                 'description' => $week->getDescriptionForLocale($locale),
-                'icon' => $week->icon,
                 'is_current' => (int) $week->week_number === (int) $currentWeekNumber,
                 'done' => $doneLessons,
                 'total' => $totalLessons,
                 'days' => $days,
-            ];
+            ], PublicIconsRegistry::expand($week->icon));
         })->values()->all();
 
         return [
@@ -171,13 +171,13 @@ class JourneyService
             ];
         }
 
-        return [
+        return array_merge([
             'id' => $week->id,
             'week_number' => $week->week_number,
             'title' => $week->getTitleForLocale($locale),
             'description' => $week->getDescriptionForLocale($locale),
             'days' => $days,
-        ];
+        ], PublicIconsRegistry::expand($week->icon));
     }
 
     /**

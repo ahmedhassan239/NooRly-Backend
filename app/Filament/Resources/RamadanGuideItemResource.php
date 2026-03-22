@@ -4,12 +4,14 @@ namespace App\Filament\Resources;
 
 use App\Domain\RamadanGuide\RamadanGuideItem;
 use App\Filament\Resources\RamadanGuideItemResource\Pages;
+use App\Support\Ramadan\RamadanIconRegistry;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class RamadanGuideItemResource extends Resource
 {
@@ -44,11 +46,24 @@ class RamadanGuideItemResource extends Resource
                             ->label('Sort Order')
                             ->numeric()
                             ->default(0),
-                        Forms\Components\TextInput::make('icon')
-                            ->label('Icon Key')
-                            ->placeholder('moon, sun, warning, hands, sparkle, mosque, food, strength, star, money, celebration, refresh')
-                            ->default('moon')
-                            ->maxLength(50),
+                        Forms\Components\Select::make('icon')
+                            ->label('Ramadan icon')
+                            ->options(fn (): array => RamadanIconRegistry::optionsForSelectWithImages())
+                            ->allowHtml()
+                            ->searchable()
+                            ->searchValues()
+                            ->preload()
+                            ->native(false)
+                            ->required()
+                            ->default(RamadanIconRegistry::defaultKey())
+                            ->formatStateUsing(fn ($state): string => RamadanIconRegistry::canonicalizeStoredKey(
+                                is_string($state) ? $state : (string) $state
+                            ))
+                            ->helperText('Icons from public/assets/ramadan. Stored value is the key (filename slug).')
+                            ->columnSpanFull()
+                            ->rules([
+                                Rule::in(RamadanIconRegistry::allowedKeysForValidation()),
+                            ]),
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active')
                             ->default(true),
@@ -77,7 +92,16 @@ class RamadanGuideItemResource extends Resource
                 Tables\Columns\TextColumn::make('sort_order')->label('#')->sortable(),
                 Tables\Columns\TextColumn::make('slug')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('title_en')->label('Title (EN)')->searchable()->limit(40),
-                Tables\Columns\TextColumn::make('icon')->badge()->color('gray'),
+                Tables\Columns\ImageColumn::make('icon_preview')
+                    ->label('Icon')
+                    ->height(36)
+                    ->width(36)
+                    ->getStateUsing(fn (RamadanGuideItem $record): string => RamadanIconRegistry::urlForStoredIcon($record->icon)),
+                Tables\Columns\TextColumn::make('icon')
+                    ->label('Icon key')
+                    ->badge()
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')->label('Active')->boolean(),
             ])
             ->defaultSort('sort_order')

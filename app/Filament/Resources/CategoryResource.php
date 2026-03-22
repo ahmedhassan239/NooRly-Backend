@@ -7,17 +7,16 @@ use App\Domain\ContentScopes\ContentScope;
 use App\Domain\Languages\Language;
 use App\Filament\Concerns\HasTranslatableTabs;
 use App\Filament\Resources\CategoryResource\Pages;
+use App\Filament\Support\PublicIconSelect;
+use App\Support\Icons\PublicIconsRegistry;
 use App\Rules\UniqueTranslatedSlug;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class CategoryResource extends Resource
 {
@@ -90,21 +89,9 @@ class CategoryResource extends Resource
                 // Icon selection
                 Forms\Components\Section::make('Icon')
                     ->schema([
-                        Forms\Components\Select::make('icon_key')
-                            ->label('Icon (optional)')
-                            ->placeholder('— No icon —')
-                            ->options(fn (): array => static::iconSearchResults(null))
-                            ->nullable()
+                        PublicIconSelect::make('icon_key', 'Icon (optional)', false)
                             ->helperText('Shown on category cards in the mobile app')
-                            ->rules([
-                                'nullable',
-                                Rule::in(Arr::wrap(array_keys(config('journey_icons', [])))),
-                            ])
-                            ->live(),
-                        Forms\Components\Placeholder::make('icon_preview')
-                            ->label('Preview')
-                            ->content(fn (Get $get): string => static::iconPreviewContent($get('icon_key')))
-                            ->visible(fn (Get $get): bool => filled($get('icon_key'))),
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
@@ -164,32 +151,6 @@ class CategoryResource extends Resource
     }
 
     /**
-     * Predefined icon keys for category cards (Lucide/Material names).
-     */
-    public static function getCategoryIconOptions(): array
-    {
-        return [
-            'bookmark' => 'Bookmark',
-            'moon' => 'Moon',
-            'sun' => 'Sun',
-            'book' => 'Book',
-            'book-open' => 'Book Open',
-            'bed' => 'Bed',
-            'utensils' => 'Utensils',
-            'car' => 'Car',
-            'shield' => 'Shield',
-            'heart' => 'Heart',
-            'star' => 'Star',
-            'home' => 'Home',
-            'mosque' => 'Mosque (if available)',
-            'hand' => 'Hand',
-            'sparkles' => 'Sparkles',
-            'compass' => 'Compass',
-            'clock' => 'Clock',
-        ];
-    }
-
-    /**
      * Generate a slug from name for a specific language.
      */
     protected static function generateSlug(string $name, string $languageCode): string
@@ -242,10 +203,15 @@ class CategoryResource extends Resource
                         });
                     })
                     ->weight('bold'),
-                Tables\Columns\TextColumn::make('icon_key')
+                Tables\Columns\ImageColumn::make('icon_thumb')
                     ->label('Icon')
-                    ->formatStateUsing(fn (?string $state): string => $state ? static::iconPreviewContent($state) : '—')
-                    ->placeholder('—'),
+                    ->getStateUsing(fn (Category $record): ?string => PublicIconsRegistry::expand($record->icon_key)['icon_url'])
+                    ->checkFileExistence(false)
+                    ->height(32),
+                Tables\Columns\TextColumn::make('icon_key')
+                    ->label('Icon key')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('slug')
                     ->label('Slug')
                     ->getStateUsing(function (Category $record): string {
@@ -312,42 +278,6 @@ class CategoryResource extends Resource
         return [
             //
         ];
-    }
-
-    public static function iconSearchResults(?string $search): array
-    {
-        $icons = config('journey_icons', []);
-        $opts = collect($icons)->mapWithKeys(fn (array $v, string $k) => [$k => ($v['emoji'] . ' ' . $v['label'])]);
-        if (blank($search)) {
-            return $opts->all();
-        }
-        $q = strtolower($search);
-        return $opts->filter(fn (string $label, string $key) =>
-            str_contains(strtolower($label), $q) || str_contains(strtolower($key), $q)
-        )->all();
-    }
-
-    public static function iconOptionLabel(?string $value): ?string
-    {
-        if (! $value) {
-            return null;
-        }
-        $icons = config('journey_icons', []);
-        $entry = $icons[$value] ?? null;
-        return $entry ? (($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $value)) : $value;
-    }
-
-    public static function iconPreviewContent(?string $iconKey): string
-    {
-        if (! $iconKey) {
-            return '—';
-        }
-        $icons = config('journey_icons', []);
-        $entry = $icons[$iconKey] ?? null;
-        if (! $entry) {
-            return '—';
-        }
-        return ($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $iconKey);
     }
 
     public static function getPages(): array

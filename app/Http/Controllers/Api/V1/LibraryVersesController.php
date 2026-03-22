@@ -7,6 +7,7 @@ use App\Domain\QuranAllLang\Helpers\SurahHelper;
 use App\Domain\QuranAllLang\Models\QuranVerse;
 use App\Domain\Verses\VerseCollection;
 use App\Http\Controllers\Controller;
+use App\Support\Icons\PublicIconsRegistry;
 use App\Support\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,12 +48,12 @@ class LibraryVersesController extends Controller
             ->where('scope_id', $scope->id)
             ->get()
             ->map(function ($category) {
-                return [
+                return array_merge([
                     'id' => $category->id,
                     'name' => $category->getName(),
                     'slug' => $category->getSlug(),
                     'description' => $category->getDescription(),
-                ];
+                ], PublicIconsRegistry::expand($category->icon_key));
             });
 
         return $this->successResponse($categories->toArray(), 'Categories retrieved successfully');
@@ -80,14 +81,13 @@ class LibraryVersesController extends Controller
             ->orderBy('display_order')
             ->orderBy('id')
             ->get()
-            ->map(fn (VerseCollection $c) => [
+            ->map(fn (VerseCollection $c) => array_merge([
                 'id' => $c->id,
                 'title' => $c->getTitle($locale),
                 'slug' => $c->getSlug($locale),
                 'description' => $c->getDescription($locale),
                 'display_order' => $c->display_order,
-                'icon' => filled($c->icon) ? $c->icon : null,
-            ]);
+            ], PublicIconsRegistry::expand($c->icon)));
 
         return $this->successResponse($collections->toArray(), 'Collections retrieved successfully');
     }
@@ -109,15 +109,14 @@ class LibraryVersesController extends Controller
             ->orderBy('display_order')
             ->orderBy('id')
             ->get()
-            ->map(fn (VerseCollection $c) => [
+            ->map(fn (VerseCollection $c) => array_merge([
                 'id' => $c->id,
                 'title' => $c->getTitle($locale),
                 'slug' => $c->getSlug($locale),
                 'description' => $c->getDescription($locale),
                 'display_order' => (int) $c->display_order,
                 'items_count' => (int) ($c->items_count ?? 0),
-                'icon' => filled($c->icon) ? $c->icon : null,
-            ]);
+            ], PublicIconsRegistry::expand($c->icon)));
 
         return $this->successResponse($collections->toArray(), 'Collections retrieved successfully');
     }
@@ -137,13 +136,12 @@ class LibraryVersesController extends Controller
         $ayahIds = $collection->getQuranAyahIds();
         if (empty($ayahIds)) {
             return $this->successResponse([
-                'collection' => [
+                'collection' => array_merge([
                     'id' => $collection->id,
                     'title' => $collection->getTitle($locale),
                     'slug' => $collection->getSlug($locale),
                     'description' => $collection->getDescription($locale),
-                    'icon' => filled($collection->icon) ? $collection->icon : null,
-                ],
+                ], PublicIconsRegistry::expand($collection->icon)),
                 'verses' => [],
             ], 'Collection retrieved successfully');
         }
@@ -186,13 +184,12 @@ class LibraryVersesController extends Controller
         }
 
         return $this->successResponse([
-            'collection' => [
+            'collection' => array_merge([
                 'id' => $collection->id,
                 'title' => $collection->getTitle($locale),
                 'slug' => $collection->getSlug($locale),
                 'description' => $collection->getDescription($locale),
-                'icon' => filled($collection->icon) ? $collection->icon : null,
-            ],
+            ], PublicIconsRegistry::expand($collection->icon)),
             'verses' => $ordered,
         ], 'Collection retrieved successfully');
     }

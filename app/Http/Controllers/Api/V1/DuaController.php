@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Categories\Models\Category;
 use App\Domain\Duas\Dua;
 use App\Http\Controllers\Controller;
+use App\Support\Icons\PublicIconsRegistry;
 use App\Http\Resources\Api\V1\DuaResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -121,15 +122,14 @@ class DuaController extends Controller
                 ->where('categorizable_type', Dua::class)
                 ->count();
             
-            return [
+            return array_merge([
                 'id' => $category->id,
                 'name' => $category->getName($locale),
                 'slug' => $category->getSlug($locale),
                 'description' => $category->getDescription($locale),
                 'duas_count' => $duasCount,
-                'icon_key' => $category->icon_key,
                 'icon_color' => $category->icon_color,
-            ];
+            ], PublicIconsRegistry::expand($category->icon_key));
         });
 
         return response()->json([

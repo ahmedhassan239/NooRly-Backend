@@ -5,7 +5,7 @@ namespace Database\Seeders\Data;
 class RamadanGuideContent
 {
     /**
-     * @return array<int, array{slug: string, sort_order: int, icon: string, title_en: string, title_ar: string, description_en: string, description_ar: string, content_en: string, content_ar: string}>
+     * @return array<int, array<string, mixed>>  icon = RamadanIconRegistry key (filename slug under public/assets/ramadan)
      */
     public static function data(): array
     {
@@ -13,7 +13,7 @@ class RamadanGuideContent
             [
                 'slug' => 'what-is-ramadan',
                 'sort_order' => 1,
-                'icon' => 'moon',
+                'icon' => 'ramadhan-night-icon',
                 'title_en' => 'What is Ramadan?',
                 'title_ar' => 'ما هو رمضان؟',
                 'description_en' => 'Understanding the blessed month',
@@ -24,7 +24,7 @@ class RamadanGuideContent
             [
                 'slug' => 'how-to-fast',
                 'sort_order' => 2,
-                'icon' => 'sun',
+                'icon' => 'ramadhan-day-icon',
                 'title_en' => 'How to Fast',
                 'title_ar' => 'كيف أصوم؟',
                 'description_en' => 'A step-by-step guide to fasting',
@@ -35,7 +35,7 @@ class RamadanGuideContent
             [
                 'slug' => 'what-breaks-the-fast',
                 'sort_order' => 3,
-                'icon' => 'warning',
+                'icon' => 'halal-icon',
                 'title_en' => 'What Breaks the Fast',
                 'title_ar' => 'ما الذي يُفطر الصائم؟',
                 'description_en' => 'Clear list of what invalidates fasting',
@@ -46,7 +46,7 @@ class RamadanGuideContent
             [
                 'slug' => 'ramadan-duas',
                 'sort_order' => 4,
-                'icon' => 'hands',
+                'icon' => 'pray-icon',
                 'title_en' => 'Ramadan Duas',
                 'title_ar' => 'أدعية رمضان',
                 'description_en' => 'Essential supplications for Ramadan',
@@ -57,7 +57,7 @@ class RamadanGuideContent
             [
                 'slug' => 'laylatul-qadr',
                 'sort_order' => 5,
-                'icon' => 'sparkle',
+                'icon' => 'eid-icon',
                 'title_en' => 'Laylatul Qadr',
                 'title_ar' => 'ليلة القدر',
                 'description_en' => 'The Night of Power',
@@ -68,7 +68,7 @@ class RamadanGuideContent
             [
                 'slug' => 'taraweeh-prayer',
                 'sort_order' => 6,
-                'icon' => 'mosque',
+                'icon' => 'mosque-icon',
                 'title_en' => 'Taraweeh Prayer',
                 'title_ar' => 'صلاة التراويح',
                 'description_en' => 'Night prayer in Ramadan',
@@ -79,7 +79,7 @@ class RamadanGuideContent
             [
                 'slug' => 'suhoor-iftar-tips',
                 'sort_order' => 7,
-                'icon' => 'food',
+                'icon' => 'meal-bowl-icon',
                 'title_en' => 'Suhoor & Iftar Tips',
                 'title_ar' => 'نصائح السحور والإفطار',
                 'description_en' => 'Eating wisely during Ramadan',
@@ -90,7 +90,7 @@ class RamadanGuideContent
             [
                 'slug' => 'managing-hunger-thirst',
                 'sort_order' => 8,
-                'icon' => 'strength',
+                'icon' => 'muslim-man-icon',
                 'title_en' => 'Managing Hunger & Thirst',
                 'title_ar' => 'التعامل مع الجوع والعطش',
                 'description_en' => 'Staying strong throughout the day',
@@ -101,7 +101,7 @@ class RamadanGuideContent
             [
                 'slug' => 'last-ten-nights',
                 'sort_order' => 9,
-                'icon' => 'star',
+                'icon' => 'ramadhan-night-icon',
                 'title_en' => 'The Last 10 Nights',
                 'title_ar' => 'العشر الأواخر',
                 'description_en' => 'The most blessed nights',
@@ -112,7 +112,7 @@ class RamadanGuideContent
             [
                 'slug' => 'zakat-al-fitr',
                 'sort_order' => 10,
-                'icon' => 'money',
+                'icon' => 'zakat-icon',
                 'title_en' => 'Zakat al-Fitr',
                 'title_ar' => 'زكاة الفطر',
                 'description_en' => 'Charity at the end of Ramadan',
@@ -123,7 +123,7 @@ class RamadanGuideContent
             [
                 'slug' => 'eid-al-fitr',
                 'sort_order' => 11,
-                'icon' => 'celebration',
+                'icon' => 'eid-icon',
                 'title_en' => 'Eid al-Fitr',
                 'title_ar' => 'عيد الفطر',
                 'description_en' => 'Celebrating the end of Ramadan',
@@ -134,7 +134,7 @@ class RamadanGuideContent
             [
                 'slug' => 'common-mistakes',
                 'sort_order' => 12,
-                'icon' => 'warning',
+                'icon' => 'halal-icon',
                 'title_en' => 'Common Mistakes in Ramadan',
                 'title_ar' => 'أخطاء شائعة في رمضان',
                 'description_en' => 'What to avoid during Ramadan',
@@ -145,7 +145,7 @@ class RamadanGuideContent
             [
                 'slug' => 'after-ramadan',
                 'sort_order' => 13,
-                'icon' => 'refresh',
+                'icon' => 'app-islamic-icon',
                 'title_en' => 'After Ramadan',
                 'title_ar' => 'بعد رمضان',
                 'description_en' => 'Maintaining the good habits',

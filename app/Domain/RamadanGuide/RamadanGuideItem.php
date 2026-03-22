@@ -2,8 +2,9 @@
 
 namespace App\Domain\RamadanGuide;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Support\Ramadan\RamadanIconRegistry;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class RamadanGuideItem extends Model
 {
@@ -54,13 +55,18 @@ class RamadanGuideItem extends Model
 
     public function toApiArray(string $locale = 'en'): array
     {
+        $iconKey = RamadanIconRegistry::canonicalizeStoredKey($this->icon);
+
+        // icon: legacy key for older mobile clients; prefer icon_key + icon_url.
         return [
             'id' => $this->id,
             'slug' => $this->slug,
             'title' => $this->getTitleForLocale($locale),
             'description' => $this->getDescriptionForLocale($locale),
             'content' => $this->getContentForLocale($locale),
-            'icon' => $this->icon,
+            'icon' => $iconKey,
+            'icon_key' => $iconKey,
+            'icon_url' => RamadanIconRegistry::urlForStoredIcon($this->icon),
             'sort_order' => $this->sort_order,
         ];
     }

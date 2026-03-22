@@ -25,7 +25,9 @@ use App\Http\Controllers\Api\V1\NotificationDeviceTokenController;
 use App\Http\Controllers\Api\V1\NotificationInboxController;
 use App\Http\Controllers\Api\V1\NotificationLogController;
 use App\Http\Controllers\Api\V1\NotificationPreferenceController;
+use App\Http\Controllers\Api\V1\ContentIconController;
 use App\Http\Controllers\Api\V1\RamadanGuideController;
+use App\Http\Controllers\Api\V1\RamadanGuideIconController;
 use App\Http\Controllers\Api\V1\HelpNowController;
 use App\Http\Controllers\Api\V1\SavedItemController;
 use App\Http\Controllers\Api\V1\SettingsController;
@@ -41,6 +43,9 @@ Route::prefix('v1')->group(function () {
     | System & Configuration
     |--------------------------------------------------------------------------
     */
+    Route::get('/content-icons/{filename}', [ContentIconController::class, 'show'])
+        ->where('filename', '.+');
+
     Route::get('/health', [SystemController::class, 'health']);
     Route::get('/health/tables', [SystemController::class, 'tables']);
     Route::post('/events', [EventController::class, 'store']);
@@ -165,6 +170,8 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/ramadan-guide', [RamadanGuideController::class, 'index']);
+    Route::get('/ramadan-guide/icons/{filename}', [RamadanGuideIconController::class, 'show'])
+        ->where('filename', '.+');
     Route::get('/ramadan-guide/{slug}', [RamadanGuideController::class, 'show']);
 
     /*

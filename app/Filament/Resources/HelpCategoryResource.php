@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Domain\HelpNow\HelpCategory;
 use App\Filament\Resources\HelpCategoryResource\Pages;
+use App\Filament\Support\PublicIconSelect;
+use App\Support\Icons\PublicIconsRegistry;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -41,11 +43,8 @@ class HelpCategoryResource extends Resource
                             ->live(onBlur: true)
                             ->afterStateUpdated(fn ($state, callable $set) => $set('slug', Str::slug($state))),
                         Forms\Components\TextInput::make('sort_order')->label('Sort Order')->numeric()->default(0),
-                        Forms\Components\TextInput::make('icon')
-                            ->label('Icon Key')
-                            ->placeholder('question, mosque, family, heart, clipboard, support, user, people, refresh')
-                            ->default('heart')
-                            ->maxLength(50),
+                        PublicIconSelect::make('icon', 'Icon', false)
+                            ->default(PublicIconsRegistry::canonicalizeNullable('heart')),
                         Forms\Components\Toggle::make('is_active')->label('Active')->default(true),
                     ])->columns(2),
 
@@ -70,7 +69,14 @@ class HelpCategoryResource extends Resource
                 Tables\Columns\TextColumn::make('sort_order')->label('#')->sortable(),
                 Tables\Columns\TextColumn::make('slug')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('title_en')->label('Title (EN)')->searchable()->limit(40),
-                Tables\Columns\TextColumn::make('icon')->badge()->color('gray'),
+                Tables\Columns\ImageColumn::make('icon_thumb')
+                    ->label('Icon')
+                    ->getStateUsing(fn (HelpCategory $record): ?string => PublicIconsRegistry::expand($record->icon)['icon_url'])
+                    ->checkFileExistence(false)
+                    ->height(28),
+                Tables\Columns\TextColumn::make('icon')
+                    ->label('Key')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('items_count')->label('Items')->counts('items')->sortable(),
                 Tables\Columns\IconColumn::make('is_active')->label('Active')->boolean(),
             ])

@@ -4,15 +4,14 @@ namespace App\Filament\Resources;
 
 use App\Domain\ContentScopes\ContentScope;
 use App\Filament\Resources\ContentScopeResource\Pages;
+use App\Filament\Support\PublicIconSelect;
+use App\Support\Icons\PublicIconsRegistry;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class ContentScopeResource extends Resource
 {
@@ -65,21 +64,9 @@ class ContentScopeResource extends Resource
                             ->maxLength(255)
                             ->helperText('Human-readable name (e.g., "Lessons")'),
 
-                        Forms\Components\Select::make('icon_key')
-                            ->label('Icon')
-                            ->placeholder('— No icon —')
-                            ->options(fn (): array => static::iconSearchResults(null))
-                            ->nullable()
+                        PublicIconSelect::make('icon_key', 'Icon', false)
                             ->helperText('Icon shown in Library tabs')
-                            ->rules([
-                                'nullable',
-                                Rule::in(Arr::wrap(array_keys(config('journey_icons', [])))),
-                            ])
-                            ->live(),
-                        Forms\Components\Placeholder::make('icon_preview')
-                            ->label('Preview')
-                            ->content(fn (Get $get): string => static::iconPreviewContent($get('icon_key')))
-                            ->visible(fn (Get $get): bool => filled($get('icon_key'))),
+                            ->columnSpanFull(),
                         
                         Forms\Components\TextInput::make('model_class')
                             ->label('Model Class')
@@ -138,10 +125,15 @@ class ContentScopeResource extends Resource
                     ->label('Label')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('icon_key')
+                Tables\Columns\ImageColumn::make('icon_thumb')
                     ->label('Icon')
-                    ->formatStateUsing(fn (?string $state): string => $state ? static::iconPreviewContent($state) : '—')
-                    ->placeholder('—'),
+                    ->getStateUsing(fn (ContentScope $record): ?string => PublicIconsRegistry::expand($record->icon_key)['icon_url'])
+                    ->checkFileExistence(false)
+                    ->height(28),
+                Tables\Columns\TextColumn::make('icon_key')
+                    ->label('Icon key')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean()
@@ -213,29 +205,4 @@ class ContentScopeResource extends Resource
         ];
     }
 
-    public static function iconSearchResults(?string $search): array
-    {
-        $icons = config('journey_icons', []);
-        $opts = collect($icons)->mapWithKeys(fn (array $v, string $k) => [$k => ($v['emoji'] . ' ' . $v['label'])]);
-        if (blank($search)) {
-            return $opts->all();
-        }
-        $q = strtolower($search);
-        return $opts->filter(fn (string $label, string $key) =>
-            str_contains(strtolower($label), $q) || str_contains(strtolower($key), $q)
-        )->all();
-    }
-
-    public static function iconPreviewContent(?string $iconKey): string
-    {
-        if (! $iconKey) {
-            return '—';
-        }
-        $icons = config('journey_icons', []);
-        $entry = $icons[$iconKey] ?? null;
-        if (! $entry) {
-            return '—';
-        }
-        return ($entry['emoji'] ?? '') . ' ' . ($entry['label'] ?? $iconKey);
-    }
 }
