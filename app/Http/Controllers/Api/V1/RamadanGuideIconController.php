@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Support\Http\ExplicitMimeType;
 use App\Support\Ramadan\RamadanIconRegistry;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -28,6 +29,7 @@ class RamadanGuideIconController extends Controller
         }
 
         return response()->file($path, [
+            'Content-Type' => ExplicitMimeType::forBasename($basename),
             'Access-Control-Allow-Origin' => '*',
             'Access-Control-Allow-Methods' => 'GET, OPTIONS',
             'Cache-Control' => 'public, max-age=86400',
