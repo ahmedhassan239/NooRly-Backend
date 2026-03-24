@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\V1;
 
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,6 +26,7 @@ class AppUserResource extends JsonResource
             'birth_date' => $this->profile?->birth_date?->toDateString(),
             'locale' => $this->profile?->locale,
             'avatar' => $this->profile?->avatar,
+            'avatar_url' => $this->resolveAvatarUrl($this->profile?->avatar),
             'last_active_at' => $this->last_active_at?->toIso8601String(),
             'profile' => new AppUserProfileResource($this->whenLoaded('profile')),
             'providers' => AppUserProviderResource::collection($this->whenLoaded('providers')),
@@ -36,5 +38,18 @@ class AppUserResource extends JsonResource
             }),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
+    }
+
+    private function resolveAvatarUrl(?string $avatarPath): ?string
+    {
+        if (!$avatarPath) {
+            return null;
+        }
+
+        if (str_starts_with($avatarPath, 'http://') || str_starts_with($avatarPath, 'https://')) {
+            return $avatarPath;
+        }
+
+        return Storage::disk('public')->url($avatarPath);
     }
 }
