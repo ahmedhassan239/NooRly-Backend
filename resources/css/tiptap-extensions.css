@@ -129,6 +129,242 @@
   opacity: 0.7;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Admin editor theme fixes (Filament dark mode)                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+  The vendor stylesheet for the Tiptap editor hard-sets:
+    .tiptap-editor .ProseMirror { color: #000; }
+
+  It also provides a dark override under `.dark ...`, but Filament's dark mode
+  can be expressed via different selectors depending on panel/theme setup.
+  We override the editable content area colors in a theme-aware way while
+  preserving toolbar and block styling.
+*/
+
+.tiptap-editor .ProseMirror {
+  color: rgb(17 24 39); /* slate-900 */
+}
+
+.dark .tiptap-editor .ProseMirror,
+[data-theme='dark'] .tiptap-editor .ProseMirror,
+html.dark .tiptap-editor .ProseMirror {
+  color: rgb(226 232 240); /* slate-200 */
+}
+
+/* Legacy content: neutralize inline black text color in dark mode. */
+.dark .tiptap-editor .ProseMirror :is(
+  [style*="color:#000"],
+  [style*="color: #000"],
+  [style*="color:#000000"],
+  [style*="color: #000000"],
+  [style*="color:#111"],
+  [style*="color: #111"],
+  [style*="color:#111111"],
+  [style*="color: #111111"],
+  [style*="color:#222"],
+  [style*="color: #222"],
+  [style*="color:#333"],
+  [style*="color: #333"],
+  [style*="color:#111827"],
+  [style*="color: #111827"],
+  [style*="color:#1f2937"],
+  [style*="color: #1f2937"],
+  [style*="color:#374151"],
+  [style*="color: #374151"],
+  [style*="color:black"],
+  [style*="color: black"],
+  [style*="color:rgb(0"],
+  [style*="color: rgb(0"],
+  [style*="color:rgb(17,24,39"],
+  [style*="color: rgb(17, 24, 39"],
+  [style*="color:rgb(31,41,55"],
+  [style*="color: rgb(31, 41, 55"],
+  [style*="color:rgb(55,65,81"],
+  [style*="color: rgb(55, 65, 81"],
+  [style*="color:rgba(0"],
+  [style*="color: rgba(0"]
+) {
+  color: inherit !important;
+}
+
+[data-theme='dark'] .tiptap-editor .ProseMirror :is(
+  [style*="color:#000"],
+  [style*="color: #000"],
+  [style*="color:#000000"],
+  [style*="color: #000000"],
+  [style*="color:#111"],
+  [style*="color: #111"],
+  [style*="color:#111111"],
+  [style*="color: #111111"],
+  [style*="color:#222"],
+  [style*="color: #222"],
+  [style*="color:#333"],
+  [style*="color: #333"],
+  [style*="color:#111827"],
+  [style*="color: #111827"],
+  [style*="color:#1f2937"],
+  [style*="color: #1f2937"],
+  [style*="color:#374151"],
+  [style*="color: #374151"],
+  [style*="color:black"],
+  [style*="color: black"],
+  [style*="color:rgb(0"],
+  [style*="color: rgb(0"],
+  [style*="color:rgb(17,24,39"],
+  [style*="color: rgb(17, 24, 39"],
+  [style*="color:rgb(31,41,55"],
+  [style*="color: rgb(31, 41, 55"],
+  [style*="color:rgb(55,65,81"],
+  [style*="color: rgb(55, 65, 81"],
+  [style*="color:rgba(0"],
+  [style*="color: rgba(0"]
+) {
+  color: inherit !important;
+}
+
+/* Same legacy override for non-editor previews that use tiptap HTML wrappers. */
+.dark .tiptap-content :is(
+  [style*="color:#000"],
+  [style*="color: #000"],
+  [style*="color:#000000"],
+  [style*="color: #000000"],
+  [style*="color:#111"],
+  [style*="color: #111"],
+  [style*="color:#111111"],
+  [style*="color: #111111"],
+  [style*="color:#222"],
+  [style*="color: #222"],
+  [style*="color:#333"],
+  [style*="color: #333"],
+  [style*="color:#111827"],
+  [style*="color: #111827"],
+  [style*="color:#1f2937"],
+  [style*="color: #1f2937"],
+  [style*="color:#374151"],
+  [style*="color: #374151"],
+  [style*="color:black"],
+  [style*="color: black"],
+  [style*="color:rgb(0"],
+  [style*="color: rgb(0"],
+  [style*="color:rgb(17,24,39"],
+  [style*="color: rgb(17, 24, 39"],
+  [style*="color:rgb(31,41,55"],
+  [style*="color: rgb(31, 41, 55"],
+  [style*="color:rgb(55,65,81"],
+  [style*="color: rgb(55, 65, 81"],
+  [style*="color:rgba(0"],
+  [style*="color: rgba(0"]
+) {
+  color: inherit !important;
+}
+
+[data-theme='dark'] .tiptap-content :is(
+  [style*="color:#000"],
+  [style*="color: #000"],
+  [style*="color:#000000"],
+  [style*="color: #000000"],
+  [style*="color:#111"],
+  [style*="color: #111"],
+  [style*="color:#111111"],
+  [style*="color: #111111"],
+  [style*="color:#222"],
+  [style*="color: #222"],
+  [style*="color:#333"],
+  [style*="color: #333"],
+  [style*="color:#111827"],
+  [style*="color: #111827"],
+  [style*="color:#1f2937"],
+  [style*="color: #1f2937"],
+  [style*="color:#374151"],
+  [style*="color: #374151"],
+  [style*="color:black"],
+  [style*="color: black"],
+  [style*="color:rgb(0"],
+  [style*="color: rgb(0"],
+  [style*="color:rgb(17,24,39"],
+  [style*="color: rgb(17, 24, 39"],
+  [style*="color:rgb(31,41,55"],
+  [style*="color: rgb(31, 41, 55"],
+  [style*="color:rgb(55,65,81"],
+  [style*="color: rgb(55, 65, 81"],
+  [style*="color:rgba(0"],
+  [style*="color: rgba(0"]
+) {
+  color: inherit !important;
+}
+
+/* Ensure common nodes inherit the computed editor text color. */
+.tiptap-editor .ProseMirror :where(p, li, h1, h2, h3, h4, h5, h6, blockquote, span) {
+  color: inherit;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Arabic reading style (legacy + new)                                        */
+/* -------------------------------------------------------------------------- */
+
+.nr-arabic-content {
+  direction: rtl;
+  unicode-bidi: plaintext;
+  text-align: right;
+  font-family: "Noto Naskh Arabic", "Amiri", "Scheherazade New", "Noto Sans Arabic", system-ui, sans-serif;
+  line-height: 1.95;
+  font-size: 1.05rem;
+  letter-spacing: 0;
+  word-spacing: 0.02em;
+}
+
+.nr-arabic-content :where(p) {
+  margin: 0.75em 0;
+}
+
+.nr-arabic-content :where(h1, h2, h3, h4) {
+  margin: 1.1em 0 0.5em;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.nr-arabic-content :where(ul, ol) {
+  margin: 0.75em 0;
+  padding-inline-start: 1.25em;
+}
+
+.nr-arabic-content :where(li) {
+  margin: 0.35em 0;
+}
+
+.nr-arabic-content :where(blockquote) {
+  margin: 1em 0;
+  padding: 0.75em 1em;
+  border-inline-start: 4px solid rgba(148, 163, 184, 0.65);
+  background: rgba(148, 163, 184, 0.10);
+  border-radius: 10px;
+}
+
+.dark .nr-arabic-content :where(blockquote),
+[data-theme='dark'] .nr-arabic-content :where(blockquote),
+html.dark .nr-arabic-content :where(blockquote) {
+  border-inline-start-color: rgba(226, 232, 240, 0.35);
+  background: rgba(226, 232, 240, 0.08);
+}
+
+.nr-arabic-content :where(a) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.nr-arabic-content :where(strong, b) {
+  font-weight: 800;
+}
+
+/* Headings in dark mode should stay readable even if a node sets its own color. */
+.dark .tiptap-editor .ProseMirror :where(h1, h2, h3, h4, h5, h6),
+[data-theme='dark'] .tiptap-editor .ProseMirror :where(h1, h2, h3, h4, h5, h6),
+html.dark .tiptap-editor .ProseMirror :where(h1, h2, h3, h4, h5, h6) {
+  color: inherit;
+}
+
 /* CalloutFallback: minimal blockquote when callout node is used as fallback */
 .tiptap-content .callout-fallback,
 .ProseMirror .callout-fallback {

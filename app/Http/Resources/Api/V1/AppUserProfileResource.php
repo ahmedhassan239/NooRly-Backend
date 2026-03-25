@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Api\V1;
 
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -33,6 +32,7 @@ class AppUserProfileResource extends JsonResource
             return $avatarPath;
         }
 
-        return Storage::disk('public')->url($avatarPath);
+        $normalized = ltrim($avatarPath, '/');
+        return "/storage/{$normalized}";
     }
 }

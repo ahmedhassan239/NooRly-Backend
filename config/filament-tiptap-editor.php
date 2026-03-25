@@ -19,7 +19,7 @@ return [
     'profiles' => [
         'default' => [
             'heading', 'bullet-list', 'ordered-list', 'checked-list', 'blockquote', 'callout', 'hr', '|',
-            'bold', 'italic', 'strike', 'underline', 'superscript', 'subscript', 'lead', 'small', 'color', 'highlight', 'align-left', 'align-center', 'align-right', '|',
+            'bold', 'italic', 'strike', 'underline', 'superscript', 'subscript', 'lead', 'small', 'highlight', 'align-left', 'align-center', 'align-right', '|',
             'link', 'media', 'oembed', 'table', 'grid-builder', 'details', '|', 'code', 'code-block', 'source', 'blocks',
             // Embed nodes + suggestion (no toolbar UI; stub components render nothing)
             'hadithEmbed', 'ayahEmbed', 'hashtagEmbedSuggestion',
