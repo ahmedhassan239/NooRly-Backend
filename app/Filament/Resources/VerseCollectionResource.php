@@ -35,21 +35,9 @@ class VerseCollectionResource extends Resource
                             ->numeric()
                             ->default(0)
                             ->minValue(0),
-                        Forms\Components\Select::make('icon')
-                            ->label('Icon (optional)')
-                            ->placeholder('— No icon —')
-                            ->options(fn (): array => static::iconSearchResults(null))
-                            ->nullable()
+                        PublicIconSelect::make('icon', 'Icon (optional)', false)
                             ->helperText('Shown on collection cards in the mobile app')
-                            ->rules([
-                                'nullable',
-                                Rule::in(Arr::wrap(array_keys(config('journey_icons', [])))),
-                            ])
-                            ->live(),
-                        Forms\Components\Placeholder::make('icon_preview')
-                            ->label('Preview')
-                            ->content(fn (Get $get): string => static::iconPreviewContent($get('icon')))
-                            ->visible(fn (Get $get): bool => filled($get('icon'))),
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
                 Forms\Components\Tabs::make('Translations')
