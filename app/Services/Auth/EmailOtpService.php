@@ -7,11 +7,8 @@ use App\Mail\EmailOtpCodeMail;
 use App\Models\EmailOtp;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Exception;
-use Carbon\Carbon;
 
 class EmailOtpService
 {
@@ -22,93 +19,81 @@ class EmailOtpService
     public function sendOtpByEmail(string $email): void
     {
         $email = strtolower(trim($email));
-        
-        // Check if user exists with this email
-        // We use AppUserProvider since auth is typically via provider
-        // Assuming email is stored in AppUserProvider or AppUser itself depending on logic.
-        // Based on RegisterAction, AppUserProvider stores the email for 'email' provider.
+
         $userProvider = \App\Domain\Auth\AppUserProvider::where('provider', 'email')
             ->where('email', $email)
             ->first();
 
-        if (!$userProvider) {
-            // Do nothing if user not found to prevent enumeration, but return success message in controller
+        if (! $userProvider) {
             return;
         }
 
         $user = $userProvider->user;
 
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
-        $this->sendOtpForUser($user, $email);
+        $this->sendOtpForUser($user, $email, EmailOtp::PURPOSE_EMAIL_VERIFICATION);
     }
 
     /**
      * Send OTP to a specific user.
      */
-    public function sendOtpForUser(AppUser $user, ?string $email = null): void
+    public function sendOtpForUser(
+        AppUser $user,
+        ?string $email = null,
+        string $purpose = EmailOtp::PURPOSE_EMAIL_VERIFICATION
+    ): void
     {
-        // If email not provided, try to find it from providers
-        if (!$email) {
+        if (! $email) {
             $provider = $user->providers()->where('provider', 'email')->first();
             $email = $provider ? $provider->email : null;
         }
 
-        if (!$email) {
-             throw new Exception("User does not have an email address.");
+        if (! $email) {
+            throw new Exception('User does not have an email address.');
         }
-        
+
         $email = strtolower(trim($email));
 
-        if ($user->email_verified_at) {
-            // Already verified, do nothing
+        if ($purpose === EmailOtp::PURPOSE_EMAIL_VERIFICATION && $user->email_verified_at) {
             return;
         }
 
-        // 1. Check Resend Cooldown (Last sent within 60s?)
         $lastOtp = EmailOtp::where('user_id', $user->id)
             ->where('email', $email)
+            ->where('purpose', $purpose)
             ->latest('last_sent_at')
             ->first();
 
         if ($lastOtp && $lastOtp->last_sent_at && $lastOtp->last_sent_at->gt(now()->subSeconds(60))) {
-             throw new Exception("Please wait before requesting another OTP.");
+            throw new Exception('Please wait before requesting another OTP.', 429);
         }
 
-        // 2. Check Rate Limit (5 per hour)
-        $rateLimitKey = 'otp:resend:' . $email;
+        $rateLimitKey = 'otp:resend:'.$purpose.':'.$email;
         if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
-             throw new Exception("Too many OTP requests. Please try again later.", 429);
+            throw new Exception('Too many OTP requests. Please try again later.', 429);
         }
-        RateLimiter::hit($rateLimitKey, 3600); // 1 hour decay
+        RateLimiter::hit($rateLimitKey, 3600);
 
-        // 3. Generate and Store OTP
         $otpPlain = (string) random_int(100000, 999999);
         $otpHash = Hash::make($otpPlain);
         $expiresAt = now()->addMinutes(10);
 
-        // We can create a new record for every OTP to keep history, or update.
-        // The requirements say "Upsert OTP record", but also have `attempts` count.
-        // A new record for each fresh OTP is cleaner for history and 'attempts' reset.
-        // However, to prevent table bloat, we could update if an unused valid one exists, 
-        // OR just create new and let old ones rot (cleanup job later).
-        // Let's create new to simplify "fresh attempts" logic.
-        
-        $emailOtp = EmailOtp::create([
+        EmailOtp::create([
             'user_id' => $user->id,
             'email' => $email,
+            'purpose' => $purpose,
             'otp_hash' => $otpHash,
             'expires_at' => $expiresAt,
             'attempts' => 0,
-            'resend_count' => ($lastOtp ? $lastOtp->resend_count : 0) + 1,
+            'resend_count' => ($lastOtp ? (int) $lastOtp->resend_count : 0) + 1,
             'last_sent_at' => now(),
             'used_at' => null,
         ]);
 
-        // 4. Send Email
-        Mail::to($email)->send(new EmailOtpCodeMail($otpPlain, $expiresAt));
+        Mail::to($email)->send(new EmailOtpCodeMail($otpPlain, $expiresAt, $purpose));
     }
 
     /**
@@ -117,63 +102,83 @@ class EmailOtpService
      */
     public function verifyOtp(string $email, string $otp): AppUser
     {
+        $result = $this->verifyOtpRecord($email, $otp, EmailOtp::PURPOSE_EMAIL_VERIFICATION, 10, 600);
+        $user = $result['user'];
+
+        if (! $user->email_verified_at) {
+            $user->update(['email_verified_at' => now()]);
+        }
+
+        RateLimiter::clear('otp:verify:'.EmailOtp::PURPOSE_EMAIL_VERIFICATION.':'.strtolower(trim($email)));
+
+        return $user;
+    }
+
+    /**
+     * Verify password-reset OTP only and return otp record + user.
+     *
+     * @return array{user: AppUser, otp: EmailOtp}
+     *
+     * @throws Exception
+     */
+    public function verifyPasswordResetOtp(string $email, string $otp): array
+    {
+        return $this->verifyOtpRecord($email, $otp, EmailOtp::PURPOSE_PASSWORD_RESET, 5, 600);
+    }
+
+    /**
+     * @return array{user: AppUser, otp: EmailOtp}
+     */
+    private function verifyOtpRecord(
+        string $email,
+        string $otp,
+        string $purpose,
+        int $maxRateAttempts,
+        int $rateDecaySeconds
+    ): array {
         $email = strtolower(trim($email));
 
-        // 1. Check Rate Limit for Verification (Brute Force Protection)
-        $rateLimitKey = 'otp:verify:' . $email;
-        if (RateLimiter::tooManyAttempts($rateLimitKey, 10)) {
-            throw new Exception("Too many verification attempts. Please try again in 10 minutes.", 429);
+        $rateLimitKey = 'otp:verify:'.$purpose.':'.$email;
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxRateAttempts)) {
+            throw new Exception('Too many verification attempts. Please try again later.', 429);
         }
-        RateLimiter::hit($rateLimitKey, 600); // 10 minutes decay
+        RateLimiter::hit($rateLimitKey, $rateDecaySeconds);
 
-        // 2. Find User
         $userProvider = \App\Domain\Auth\AppUserProvider::where('provider', 'email')
             ->where('email', $email)
             ->first();
 
-        if (!$userProvider || !$userProvider->user) {
-             throw new Exception("Invalid email address.");
+        if (! $userProvider || ! $userProvider->user) {
+            throw new Exception('Invalid or expired verification code.');
         }
         $user = $userProvider->user;
 
-        // 3. Find Latest Valid OTP
         $otpRecord = EmailOtp::where('user_id', $user->id)
             ->where('email', $email)
+            ->where('purpose', $purpose)
             ->whereNull('used_at')
             ->latest('created_at')
             ->first();
 
-        if (!$otpRecord) {
-            throw new Exception("Invalid or expired OTP.");
+        if (! $otpRecord) {
+            throw new Exception('Invalid or expired verification code.');
         }
 
-        // 4. Check Expiration
         if ($otpRecord->expires_at->isPast()) {
-            throw new Exception("OTP has expired.");
+            throw new Exception('Verification code has expired.');
         }
 
-        // 5. Check Max Attempts
-        if ($otpRecord->attempts >= 5) {
-            throw new Exception("Too many failed attempts. Please request a new OTP.");
+        if ((int) $otpRecord->attempts >= 5) {
+            throw new Exception('Too many failed attempts. Please request a new code.');
         }
 
-        // 6. Verify Hash
-        if (!Hash::check($otp, $otpRecord->otp_hash)) {
+        if (! Hash::check($otp, $otpRecord->otp_hash)) {
             $otpRecord->increment('attempts');
-            throw new Exception("Invalid OTP.");
+            throw new Exception('Invalid verification code.');
         }
 
-        // 7. Success
         $otpRecord->update(['used_at' => now()]);
-        
-        // Mark user as verified if not already
-        if (!$user->email_verified_at) {
-            $user->update(['email_verified_at' => now()]);
-        }
 
-        // Clear rate limits mostly for cleanup, though not strictly required
-        RateLimiter::clear('otp:verify:' . $email);
-        
-        return $user;
+        return ['user' => $user, 'otp' => $otpRecord];
     }
 }

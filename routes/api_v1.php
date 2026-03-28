@@ -208,9 +208,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/email/send-otp', [AuthController::class, 'sendEmailOtp']);
         Route::post('/email/verify-otp', [AuthController::class, 'verifyEmailOtp']);
 
-        // Password reset (throttle: 5 per minute per IP)
-        Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
-        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+        // Password reset via OTP
+        Route::post('/forgot-password/request-otp', [AuthController::class, 'requestForgotPasswordOtp'])->middleware('throttle:5,1');
+        Route::post('/forgot-password/verify-otp', [AuthController::class, 'verifyForgotPasswordOtp'])->middleware('throttle:10,1');
+        Route::post('/forgot-password/reset', [AuthController::class, 'resetForgotPassword'])->middleware('throttle:5,1');
 
         Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
     });

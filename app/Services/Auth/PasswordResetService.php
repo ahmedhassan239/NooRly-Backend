@@ -3,95 +3,121 @@
 namespace App\Services\Auth;
 
 use App\Domain\Auth\AppUserProvider;
-use App\Mail\PasswordResetMail;
-use Illuminate\Support\Facades\DB;
+use App\Models\EmailOtp;
+use App\Models\PasswordResetOtpSession;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Exception;
 
 class PasswordResetService
 {
-    private const TOKEN_EXPIRE_MINUTES = 60;
+    private const RESET_SESSION_EXPIRE_MINUTES = 10;
+
+    public function __construct(
+        private readonly EmailOtpService $emailOtpService
+    ) {}
 
     /**
-     * Send password reset link to email.
-     * Does not reveal whether the email exists; always returns without throwing.
+     * Request password reset OTP.
+     * Does not reveal whether the account exists.
      */
-    public function sendResetLink(string $email): void
+    public function requestOtp(string $email): void
     {
         $email = strtolower(trim($email));
+        $provider = $this->findEmailPasswordProvider($email);
 
-        $provider = AppUserProvider::where('provider', 'email')
-            ->where('email', $email)
-            ->first();
-
-        if (! $provider) {
+        if (! $provider || ! $provider->user) {
             return;
         }
 
-        $token = Str::random(64);
-        $hashed = Hash::make($token);
+        // Additional endpoint-aware throttling (in addition to route throttle)
+        $requestKey = 'password-reset:request:'.$email;
+        if (RateLimiter::tooManyAttempts($requestKey, 5)) {
+            throw new Exception('Too many requests. Please try again later.', 429);
+        }
+        RateLimiter::hit($requestKey, 60);
 
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $email],
-            [
-                'token' => $hashed,
-                'created_at' => now(),
-            ]
+        $this->emailOtpService->sendOtpForUser(
+            $provider->user,
+            $email,
+            EmailOtp::PURPOSE_PASSWORD_RESET
         );
-
-        $resetUrl = $this->buildResetUrl($email, $token);
-
-        Mail::to($email)->send(new PasswordResetMail($resetUrl, self::TOKEN_EXPIRE_MINUTES));
     }
 
     /**
-     * Reset password using token.
+     * Verify OTP and issue short-lived reset session token.
      *
-     * @throws \Exception
+     * @return array{reset_token: string, expires_in: int}
      */
-    public function reset(string $email, string $token, string $password): void
+    public function verifyOtp(string $email, string $otp): array
     {
         $email = strtolower(trim($email));
+        $provider = $this->findEmailPasswordProvider($email);
 
-        $record = DB::table('password_reset_tokens')->where('email', $email)->first();
-
-        if (! $record || ! Hash::check($token, $record->token)) {
-            throw new \Exception('This password reset link is invalid or has expired.');
+        if (! $provider || ! $provider->user) {
+            throw new Exception('Invalid or expired verification code.');
         }
 
-        $createdAt = $record->created_at ? \Carbon\Carbon::parse($record->created_at) : null;
-        if ($createdAt && $createdAt->addMinutes(self::TOKEN_EXPIRE_MINUTES)->isPast()) {
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
-            throw new \Exception('This password reset link has expired.');
+        $result = $this->emailOtpService->verifyPasswordResetOtp($email, $otp);
+        $otpRecord = $result['otp'];
+        $user = $result['user'];
+
+        $plainResetToken = Str::random(64);
+        $expiresAt = now()->addMinutes(self::RESET_SESSION_EXPIRE_MINUTES);
+
+        PasswordResetOtpSession::create([
+            'user_id' => $user->id,
+            'email_otp_id' => $otpRecord->id,
+            'email' => $email,
+            'token_hash' => Hash::make($plainResetToken),
+            'expires_at' => $expiresAt,
+            'used_at' => null,
+        ]);
+
+        return [
+            'reset_token' => $plainResetToken,
+            'expires_in' => self::RESET_SESSION_EXPIRE_MINUTES * 60,
+        ];
+    }
+
+    /**
+     * Reset password with verified reset token.
+     */
+    public function resetWithVerifiedToken(string $email, string $verifiedToken, string $password): void
+    {
+        $email = strtolower(trim($email));
+        $provider = $this->findEmailPasswordProvider($email);
+        if (! $provider || ! $provider->user) {
+            throw new Exception('Invalid reset request.');
         }
 
-        $provider = AppUserProvider::where('provider', 'email')->where('email', $email)->first();
+        $session = PasswordResetOtpSession::where('user_id', $provider->user->id)
+            ->where('email', $email)
+            ->whereNull('used_at')
+            ->latest('created_at')
+            ->first();
 
-        if (! $provider) {
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
-            throw new \Exception('Invalid reset request.');
+        if (! $session || $session->expires_at->isPast()) {
+            throw new Exception('Reset session is invalid or expired.');
+        }
+
+        if (! Hash::check($verifiedToken, $session->token_hash)) {
+            throw new Exception('Reset session is invalid or expired.');
         }
 
         $provider->update(['password' => Hash::make($password)]);
-        DB::table('password_reset_tokens')->where('email', $email)->delete();
+        $session->update(['used_at' => now()]);
+
+        // Invalidate all existing API sessions/tokens after password change.
+        $provider->user->tokens()->delete();
     }
 
-    private function buildResetUrl(string $email, string $token): string
+    private function findEmailPasswordProvider(string $email): ?AppUserProvider
     {
-        $query = http_build_query([
-            'token' => $token,
-            'email' => $email,
-        ]);
-
-        $frontendUrl = config('app.frontend_url');
-        if (! empty($frontendUrl)) {
-            return rtrim($frontendUrl, '/').'/reset-password?'.$query;
-        }
-
-        $scheme = config('app.password_reset_scheme', 'myapp');
-        $path = config('app.password_reset_path', 'reset-password');
-
-        return $scheme.'://'.$path.'?'.$query;
+        return AppUserProvider::where('provider', 'email')
+            ->where('email', $email)
+            ->whereNotNull('password')
+            ->first();
     }
 }

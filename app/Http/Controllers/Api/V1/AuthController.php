@@ -14,6 +14,7 @@ use App\Services\Auth\PasswordResetService;
 use App\Support\Traits\ApiResponseTrait;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -164,7 +165,12 @@ class AuthController extends Controller
         try {
             $this->emailOtpService->sendOtpByEmail($request->email);
         } catch (Exception $e) {
-            // Always return generic success to avoid enumeration; OTP sent only when user exists and is unverified
+            // Preserve generic response but log operational failures for debugging.
+            Log::warning('Email OTP send failed', [
+                'email' => strtolower(trim((string) $request->email)),
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
         }
 
         return $this->successResponse(null, 'If the email exists, an OTP has been sent.', 200);
@@ -233,10 +239,10 @@ class AuthController extends Controller
     }
 
     /**
-     * Forgot password: send reset link to email.
-     * Same response whether email exists or not. Throttled (5/min).
+     * Request password-reset OTP.
+     * Same success response whether email exists or not.
      */
-    public function forgotPassword(Request $request)
+    public function requestForgotPasswordOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|max:255',
@@ -246,19 +252,66 @@ class AuthController extends Controller
             return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
         }
 
-        $this->passwordResetService->sendResetLink($request->email);
+        try {
+            $this->passwordResetService->requestOtp($request->email);
+        } catch (Exception $e) {
+            if ($e->getCode() === 429) {
+                return $this->errorResponse($e->getMessage(), 429);
+            }
 
-        return $this->successResponse(null, 'Password reset link sent.', 200);
+            // Important: don't swallow infra/runtime failures silently.
+            Log::error('Forgot-password OTP request failed', [
+                'email' => strtolower(trim((string) $request->email)),
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
+
+            return $this->errorResponse('Unable to send verification code right now. Please try again shortly.', 500);
+        }
+
+        return $this->successResponse(
+            null,
+            'If an account exists, we sent a verification code.',
+            200
+        );
     }
 
     /**
-     * Reset password with token from email link.
+     * Verify password-reset OTP and issue short-lived reset token.
      */
-    public function resetPassword(Request $request)
+    public function verifyForgotPasswordOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|max:255',
-            'token' => 'required|string',
+            'otp' => ['required', 'string', 'regex:/^\d{6}$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse('Validation failed', 422, $validator->errors()->toArray());
+        }
+
+        try {
+            $data = $this->passwordResetService->verifyOtp(
+                $request->email,
+                $request->otp
+            );
+
+            return $this->successResponse($data, 'Verification code accepted.', 200);
+        } catch (Exception $e) {
+            $code = $e->getCode() === 429 ? 429 : 422;
+
+            return $this->errorResponse($e->getMessage(), $code);
+        }
+    }
+
+    /**
+     * Reset password with verified reset token.
+     */
+    public function resetForgotPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+            'reset_token' => 'required|string',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -267,9 +320,9 @@ class AuthController extends Controller
         }
 
         try {
-            $this->passwordResetService->reset(
+            $this->passwordResetService->resetWithVerifiedToken(
                 $request->email,
-                $request->token,
+                $request->reset_token,
                 $request->password
             );
 

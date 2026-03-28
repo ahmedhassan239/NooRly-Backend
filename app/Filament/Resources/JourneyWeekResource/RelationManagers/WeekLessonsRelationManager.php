@@ -45,16 +45,14 @@ class WeekLessonsRelationManager extends RelationManager
                     ->live()
                     ->rules(['integer', 'min:1', 'max:7']),
                 Forms\Components\TextInput::make('position')
-                    ->label('Position within day (1–50)')
+                    ->label('Position within day')
                     ->numeric()
                     ->minValue(1)
-                    ->maxValue(50)
                     ->default(1)
-                    ->helperText('Leave 1 to append at end of day.')
+                    ->helperText('Order on this day (1 = first). Must be unique for the selected day.')
                     ->rules([
                         'integer',
                         'min:1',
-                        'max:50',
                         function () use ($week) {
                             return function (string $attr, $value, \Closure $fail) use ($week) {
                                 $day = request()->input('day_number', 1);
@@ -131,10 +129,9 @@ class WeekLessonsRelationManager extends RelationManager
                             ->required()
                             ->rules(['integer', 'min:1', 'max:7']),
                         Forms\Components\TextInput::make('position')
-                            ->label('Position (1–50)')
+                            ->label('Position within day')
                             ->numeric()
                             ->minValue(1)
-                            ->maxValue(50)
                             ->required()
                             ->rules([
                                 function (JourneyWeekLesson $record) {
@@ -146,7 +143,6 @@ class WeekLessonsRelationManager extends RelationManager
                                 },
                                 'integer',
                                 'min:1',
-                                'max:50',
                             ]),
                     ])
                     ->mutateFormDataUsing(function (JourneyWeekLesson $record, array $data): array {

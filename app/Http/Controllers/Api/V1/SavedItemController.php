@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Adhkar\Adhkar;
 use App\Domain\Duas\Dua;
+use App\Domain\Lessons\Lesson;
 use App\Domain\QuranAllLang\Helpers\SurahHelper;
 use App\Domain\QuranAllLang\Models\QuranVerse;
 use App\Http\Controllers\Controller;
@@ -50,6 +51,9 @@ class SavedItemController extends Controller
         }
         if ($type === 'dua') {
             return $this->savedDuasIndex($request);
+        }
+        if ($type === 'lesson') {
+            return $this->savedLessonsIndex($request);
         }
 
         $user = $request->user();
@@ -126,7 +130,7 @@ class SavedItemController extends Controller
         $page = max(1, (int) $request->query('page', 1));
 
         $savedQuery = $user->savedItems()
-            ->whereIn('item_type', ['dua', 'hadith', 'verse', 'adhkar'])
+            ->whereIn('item_type', ['dua', 'hadith', 'verse', 'adhkar', 'lesson'])
             ->orderByDesc('created_at');
 
         $total = $savedQuery->count();
@@ -138,6 +142,7 @@ class SavedItemController extends Controller
         $verseMap = $this->hydrateVerseMap($request, $byType->get('verse', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
         $duaMap = $this->hydrateDuaMap($request, $byType->get('dua', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
         $adhkarMap = $this->hydrateAdhkarMap($request, $byType->get('adhkar', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
+        $lessonMap = $this->hydrateLessonMap($request, $byType->get('lesson', collect())->pluck('item_id')->map(fn ($id) => is_numeric($id) ? (int) $id : $id)->all());
 
         $items = [];
         foreach ($rows as $row) {
@@ -148,6 +153,7 @@ class SavedItemController extends Controller
                 'verse' => $verseMap[$refId] ?? null,
                 'dua' => $duaMap[$refId] ?? null,
                 'adhkar' => $adhkarMap[$refId] ?? null,
+                'lesson' => $lessonMap[$refId] ?? null,
                 default => null,
             };
             if ($entry !== null) {
@@ -288,6 +294,79 @@ class SavedItemController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * @return array<int, array{type: string, title: string, arabic: string|null, translation: string|null, source: string|null}>
+     */
+    private function hydrateLessonMap(Request $request, array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+        $locale = $this->getPreferredLocale($request);
+        $lessons = Lesson::query()
+            ->whereIn('id', $itemIds)
+            ->with([
+                'translations',
+                'journeyWeeks' => fn ($q) => $q->orderByPivot('sort_order'),
+            ])
+            ->get()
+            ->keyBy('id');
+
+        $out = [];
+        foreach ($itemIds as $id) {
+            $lesson = $lessons->get($id);
+            if (! $lesson) {
+                continue;
+            }
+            $f = $this->lessonBookmarkFields($lesson);
+            $title = $locale === 'ar'
+                ? ($f['title_ar'] !== '' ? $f['title_ar'] : $f['title_en'])
+                : ($f['title_en'] !== '' ? $f['title_en'] : $f['title_ar']);
+            $descAr = $f['description_ar'];
+            $descEn = $f['description_en'];
+            $descLocale = $locale === 'ar'
+                ? ($descAr ?: $descEn)
+                : ($descEn ?: $descAr);
+
+            $out[$id] = [
+                'type' => 'lesson',
+                'title' => $title,
+                'arabic' => $descAr,
+                'translation' => $descLocale,
+                'source' => null,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Title, descriptions, and journey placement from a lesson (requires translations + journeyWeeks eager-loaded).
+     *
+     * @return array{title_en: string, title_ar: string, description_en: ?string, description_ar: ?string, week_number: ?int, day_number: ?int}
+     */
+    private function lessonBookmarkFields(Lesson $lesson): array
+    {
+        $tEn = $lesson->translations->firstWhere('language_code', 'en');
+        $tAr = $lesson->translations->firstWhere('language_code', 'ar');
+        $titleEn = trim((string) ($tEn?->title ?? ''));
+        $titleAr = trim((string) ($tAr?->title ?? ''));
+        $descEn = $tEn?->short_description;
+        $descAr = $tAr?->short_description;
+        $week = $lesson->journeyWeeks->first();
+        $weekNumber = $week?->week_number;
+        $dayNumber = $week?->pivot?->day_number;
+
+        return [
+            'title_en' => $titleEn,
+            'title_ar' => $titleAr,
+            'description_en' => $descEn,
+            'description_ar' => $descAr,
+            'week_number' => $weekNumber !== null ? (int) $weekNumber : null,
+            'day_number' => $dayNumber !== null ? (int) $dayNumber : null,
+        ];
     }
 
     /**
@@ -650,6 +729,83 @@ class SavedItemController extends Controller
                 'source' => $dua->source,
                 'category_id' => $dua->categories->first()?->id,
                 'category_name' => $dua->categories->first()?->getName($locale),
+                'is_saved' => true,
+            ];
+        }
+
+        return $this->successResponse([
+            'items' => $items,
+            'total' => $total,
+        ], null, 200, [
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'has_more' => $offset + $savedRows->count() < $total,
+        ]);
+    }
+
+    /**
+     * GET /saved?type=lesson — hydrated saved lessons (latest first, paginated).
+     */
+    private function savedLessonsIndex(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $perPage = (int) $request->query('per_page', 20);
+        $perPage = $perPage < 1 ? 20 : min($perPage, 100);
+
+        $savedQuery = $user->savedItems()
+            ->where('item_type', 'lesson')
+            ->orderByDesc('created_at');
+
+        $total = $savedQuery->count();
+        $page = max(1, (int) $request->query('page', 1));
+        $offset = ($page - 1) * $perPage;
+
+        $savedRows = $savedQuery->offset($offset)->limit($perPage)->get(['id', 'item_id', 'created_at']);
+
+        $lessonIds = $savedRows->pluck('item_id')->map(function ($id) {
+            return is_numeric($id) ? (int) $id : $id;
+        })->all();
+
+        if (count($lessonIds) === 0) {
+            return $this->successResponse([
+                'items' => [],
+                'total' => $total,
+            ], null, 200, [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'has_more' => false,
+            ]);
+        }
+
+        $lessonModels = Lesson::query()
+            ->whereIn('id', $lessonIds)
+            ->with([
+                'translations',
+                'journeyWeeks' => fn ($q) => $q->orderByPivot('sort_order'),
+            ])
+            ->get()
+            ->keyBy('id');
+
+        $items = [];
+        foreach ($lessonIds as $lid) {
+            $lesson = $lessonModels->get($lid);
+            if (! $lesson) {
+                continue;
+            }
+            $f = $this->lessonBookmarkFields($lesson);
+            $items[] = [
+                'id' => $lesson->id,
+                'item_id' => $lesson->id,
+                'title_en' => $f['title_en'] !== '' ? $f['title_en'] : null,
+                'title_ar' => $f['title_ar'] !== '' ? $f['title_ar'] : null,
+                'title' => $f['title_en'] !== '' ? $f['title_en'] : ($f['title_ar'] !== '' ? $f['title_ar'] : null),
+                'description_en' => $f['description_en'],
+                'description_ar' => $f['description_ar'],
+                'description' => $f['description_en'] ?? $f['description_ar'],
+                'week_number' => $f['week_number'],
+                'day_number' => $f['day_number'],
                 'is_saved' => true,
             ];
         }

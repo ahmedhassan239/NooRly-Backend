@@ -6,18 +6,14 @@ use App\Domain\Auth\AppUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class EmailOtp extends Model
+class PasswordResetOtpSession extends Model
 {
     use HasFactory;
-
-    public const PURPOSE_EMAIL_VERIFICATION = 'email_verification';
-    public const PURPOSE_PASSWORD_RESET = 'password_reset';
 
     protected $guarded = ['id'];
 
     protected $casts = [
         'expires_at' => 'datetime',
-        'last_sent_at' => 'datetime',
         'used_at' => 'datetime',
     ];
 

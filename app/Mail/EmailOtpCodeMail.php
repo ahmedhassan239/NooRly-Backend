@@ -19,7 +19,8 @@ class EmailOtpCodeMail extends Mailable
      */
     public function __construct(
         public string $otp,
-        public CarbonInterface $expiresAt
+        public CarbonInterface $expiresAt,
+        public string $purpose = 'email_verification'
     ) {}
 
     /**
@@ -27,8 +28,12 @@ class EmailOtpCodeMail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $subject = $this->purpose === 'password_reset'
+            ? 'Reset your password - NooRly'
+            : 'Verify your email - NooRly';
+
         return new Envelope(
-            subject: 'Verify your email - NooRly',
+            subject: $subject,
             from: new \Illuminate\Mail\Mailables\Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME', 'NooRly')),
         );
     }

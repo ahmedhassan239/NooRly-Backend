@@ -1,5 +1,14 @@
 <?php
 
+$mailScheme = env('MAIL_SCHEME');
+if ($mailScheme === null || $mailScheme === '' || strtolower((string) $mailScheme) === 'null') {
+    $mailScheme = env('MAIL_ENCRYPTION');
+}
+if (is_string($mailScheme) && strtolower($mailScheme) === 'ssl') {
+    // Symfony mailer expects "smtps" (not "ssl") for implicit TLS on port 465.
+    $mailScheme = 'smtps';
+}
+
 return [
 
     /*
@@ -39,7 +48,7 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            'scheme' => $mailScheme,
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
