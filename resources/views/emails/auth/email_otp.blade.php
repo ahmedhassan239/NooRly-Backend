@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>NooRly Security Code</title>
+    <title>ق Security Code</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
@@ -14,7 +14,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2>NooRly Security Code</h2>
+            <h2>ق Security Code</h2>
         </div>
         <div class="content">
             <p>Hello,</p>
@@ -29,7 +29,7 @@
             <p>If you did not request this code, please ignore this email.</p>
         </div>
         <div class="footer">
-            <p>&copy; {{ date('Y') }} NooRly. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} ق. All rights reserved.</p>
         </div>
     </div>
 </body>

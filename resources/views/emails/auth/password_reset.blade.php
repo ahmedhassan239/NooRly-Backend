@@ -14,7 +14,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2>NooRly – Reset your password</h2>
+            <h2>ق – Reset your password</h2>
         </div>
         <div class="content">
             <p>Hello,</p>
@@ -25,7 +25,7 @@
             <p>If you did not request this, you can ignore this email.</p>
         </div>
         <div class="footer">
-            <p>&copy; {{ date('Y') }} NooRly. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} ق. All rights reserved.</p>
         </div>
     </div>
 </body>

@@ -1,4 +1,4 @@
-# NooRly API Specification (v1)
+# ق API Specification (v1)
 
 **Version:** 1.0.0  
 **Base URL:** `/api/v1`  
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The NooRly API provides endpoints for the Flutter mobile app to access Islamic content including Quran, Hadith, Duas, Adhkar, and learning journey features.
+The ق API provides endpoints for the Flutter mobile app to access Islamic content including Quran, Hadith, Duas, Adhkar, and learning journey features.
 
 ### Authentication
 
@@ -90,7 +90,7 @@ Returns public app settings and home sections configuration.
   "status": true,
   "data": {
     "settings": {
-      "app_name": "NooRly",
+      "app_name": "ق",
       "maintenance_mode": false,
       "features_enabled": ["lessons", "duas", "hadith", "quran"],
       "home_sections_order": ["daily_verse", "daily_hadith", "journey_progress"]

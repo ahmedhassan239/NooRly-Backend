@@ -11,4 +11,4 @@ OTP Code: {{ $otp }}
 If you did not request this code, please ignore this email.
 
 Thanks,
-NooRly Team
+ق Team

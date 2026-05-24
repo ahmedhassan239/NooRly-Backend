@@ -1,4 +1,4 @@
-Reset your password - NooRly
+Reset your password - ق
 
 Hello,
 
@@ -9,4 +9,4 @@ You requested a password reset. Use the link below to set a new password. This l
 If you did not request this, you can ignore this email.
 
 Thanks,
-NooRly Team
+ق Team

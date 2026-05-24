@@ -20,10 +20,10 @@ class PasswordResetMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Reset your password - NooRly',
+            subject: 'Reset your password - ق',
             from: new \Illuminate\Mail\Mailables\Address(
                 config('mail.from.address'),
-                config('mail.from.name', 'NooRly')
+                config('mail.from.name', 'ق')
             ),
         );
     }

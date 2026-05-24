@@ -67,7 +67,7 @@ cp .env_server .env
 php artisan key:generate
 
 # Update APP_URL in .env to match your domain
-# APP_URL=https://admin.noorly.net
+# APP_URL=https://admin.theqaf.org
 ```
 
 ### 4. Database Setup
@@ -110,7 +110,7 @@ php artisan make:filament-user
 ```nginx
 server {
     listen 80;
-    server_name admin.noorly.net;
+    server_name admin.theqaf.org;
     root /path/to/your/project/Backend/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -144,7 +144,7 @@ server {
 #### For Apache:
 ```apache
 <VirtualHost *:80>
-    ServerName admin.noorly.net
+    ServerName admin.theqaf.org
     DocumentRoot /path/to/your/project/Backend/public
 
     <Directory /path/to/your/project/Backend/public>

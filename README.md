@@ -1,10 +1,10 @@
-# NooRly - Backend API
+# ق - Backend API
 
 [![Laravel](https://img.shields.io/badge/Laravel-12.0-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
 [![Filament](https://img.shields.io/badge/Filament-3.2-FFA500?style=for-the-badge&logo=filament)](https://filamentphp.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-NooRly is the backend engine powering the **New Muslim Path** platform. It provides a robust REST API and a comprehensive administration panel for managing educational content, daily tasks, progress tracking, and spiritual guidance for new Muslims.
+ق is the backend engine powering the **New Muslim Path** platform. It provides a robust REST API and a comprehensive administration panel for managing educational content, daily tasks, progress tracking, and spiritual guidance for new Muslims.
 
 ## 🚀 Features
 
@@ -42,7 +42,7 @@ NooRly is the backend engine powering the **New Muslim Path** platform. It provi
 
 ```bash
 git clone <repository-url>
-cd NooRly-Backend
+cd ق-Backend
 ```
 
 ### 2. Install Dependencies

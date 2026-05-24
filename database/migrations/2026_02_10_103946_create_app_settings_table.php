@@ -43,7 +43,7 @@ return new class extends Migration
             // General
             [
                 'key' => 'app_name',
-                'value' => json_encode('NooRly'),
+                'value' => json_encode('ق'),
                 'group' => 'general',
                 'type' => 'string',
                 'description' => 'Application name',

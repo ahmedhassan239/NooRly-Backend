@@ -29,12 +29,12 @@ class EmailOtpCodeMail extends Mailable
     public function envelope(): Envelope
     {
         $subject = $this->purpose === 'password_reset'
-            ? 'Reset your password - NooRly'
-            : 'Verify your email - NooRly';
+            ? 'Reset your password - ق'
+            : 'Verify your email - ق';
 
         return new Envelope(
             subject: $subject,
-            from: new \Illuminate\Mail\Mailables\Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME', 'NooRly')),
+            from: new \Illuminate\Mail\Mailables\Address(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME', 'ق')),
         );
     }
 

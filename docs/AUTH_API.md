@@ -1,6 +1,6 @@
 # Authentication API
 
-Base URL: `https://admin.noorly.net/api/v1`
+Base URL: `https://admin.theqaf.org/api/v1`
 
 All responses follow this format:
 ```json

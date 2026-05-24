@@ -1,4 +1,4 @@
-# NooRly Backend API Audit Report
+# ق Backend API Audit Report
 
 **Date:** February 3, 2026  
 **Purpose:** Comprehensive audit of backend API endpoints vs Flutter app requirements
@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-The NooRly backend has **42 existing API endpoints**, but the Flutter app currently uses **local JSON assets** instead of the backend API. This report identifies gaps between what the backend provides and what the Flutter app needs for full dynamic content management.
+The ق backend has **42 existing API endpoints**, but the Flutter app currently uses **local JSON assets** instead of the backend API. This report identifies gaps between what the backend provides and what the Flutter app needs for full dynamic content management.
 
 ### Key Findings
 

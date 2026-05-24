@@ -18,7 +18,7 @@ class AppConfigTest extends TestCase
         // Create test settings
         AppSetting::create([
             'key' => 'app_name',
-            'value' => 'NooRly Test',
+            'value' => 'ق Test',
             'group' => 'general',
             'type' => 'string',
             'is_public' => true,
@@ -128,7 +128,7 @@ class AppConfigTest extends TestCase
                 'status' => true,
                 'data' => [
                     'key' => 'app_name',
-                    'value' => 'NooRly Test',
+                    'value' => 'ق Test',
                     'type' => 'string',
                 ],
             ]);
