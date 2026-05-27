@@ -112,4 +112,44 @@ class UserController extends Controller
             );
         }
     }
+
+    /**
+     * Delete user account securely.
+     */
+    public function destroyAccount(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'confirmation_text' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->errorResponse("Validation failed", 422, $validator->errors()->toArray());
+            }
+
+            // Require the user to type "DELETE" or "حذف"
+            $confirmation = strtoupper(trim($request->input('confirmation_text')));
+            if ($confirmation !== 'DELETE' && $confirmation !== 'حذف') {
+                return $this->errorResponse("Invalid confirmation text. Please type DELETE.", 422);
+            }
+
+            $user = $request->user();
+
+            // Revoke all tokens
+            $user->tokens()->delete();
+
+            // Soft delete user (cascading logic could be added to models if needed,
+            // but soft deleting the user is generally sufficient for compliance and recovery)
+            $user->delete();
+
+            return $this->successResponse(null, "Account successfully deleted.");
+        } catch (Throwable $e) {
+            Log::error('Account deletion failed', [
+                'user_id' => $request->user()?->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return $this->errorResponse("Failed to delete account. Please try again later.", 500);
+        }
+    }
 }

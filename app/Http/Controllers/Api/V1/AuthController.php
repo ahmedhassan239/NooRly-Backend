@@ -74,6 +74,32 @@ class AuthController extends Controller
 
         $email = $request->email;
 
+        // ─── 1. Check for a SOFT-DELETED account with this email ──────────────
+        // The provider table has no soft-delete; the user (AppUser) does.
+        // We use withTrashed() on the user relation side via a join.
+        $deletedProvider = AppUserProvider::where('provider', 'email')
+            ->where('email', $email)
+            ->whereHas('userWithTrashed', fn ($q) => $q->whereNotNull('deleted_at'))
+            ->first();
+
+        if ($deletedProvider) {
+            // Restore the account and update credentials
+            $user = $action->restoreDeleted($deletedProvider, $request->all());
+
+            try {
+                $this->emailOtpService->sendOtpForUser($user, $email);
+            } catch (Exception $e) {
+                // Cooldown/rate-limit: user will see OTP screen and can resend
+            }
+
+            return $this->successResponse([
+                'needs_email_verification' => true,
+                'email' => $email,
+                'account_restored' => true,
+            ], 'Your account has been restored. Please verify your email.', 200);
+        }
+
+        // ─── 2. Check for an existing ACTIVE account ──────────────────────────
         $existingProvider = AppUserProvider::where('provider', 'email')
             ->where('email', $email)
             ->first();
@@ -98,6 +124,7 @@ class AuthController extends Controller
             ], 'Please verify your email.', 200);
         }
 
+        // ─── 3. Brand-new registration ────────────────────────────────────────
         try {
             $user = $action->execute($request->all());
             try {

@@ -221,6 +221,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/me', [UserController::class, 'me']);
         Route::put('/me/profile', [UserController::class, 'updateProfile']);
         Route::post('/me/profile/avatar', [UserController::class, 'uploadAvatar']);
+        Route::delete('/me', [UserController::class, 'destroyAccount']);
 
         // Admin campaigns: app-pull pipeline (local notifications on device; not background push)
         Route::get('/user/pending-notifications', [UserPendingNotificationController::class, 'index']);
