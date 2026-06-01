@@ -14,3 +14,8 @@ Route::get('/', function () {
 Route::any('/reset-password', function () {
     abort(410, 'Password reset links are no longer supported.');
 });
+
+// Account deletion instructions for Google Play Store requirements
+Route::get('/account-deletion', function () {
+    return view('account-deletion');
+});
